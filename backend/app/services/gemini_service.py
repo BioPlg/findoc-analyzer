@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib
 import importlib.util
 import json
+import time
 from typing import Any
 
 from pydantic import ValidationError
@@ -21,6 +22,8 @@ from app.services.prompt_builder_service import create_financial_extraction_prom
 
 DEFAULT_GEMINI_EXTRACTION_MODEL = "gemini-2.5-flash"
 RETRYABLE_STATUS_CODES = {429, 503, 504}
+MAX_GEMINI_RATE_LIMIT_ATTEMPTS = 3
+INITIAL_GEMINI_BACKOFF_SECONDS = 1.0
 RETRYABLE_STATUS_NAMES = {
     "RESOURCE_EXHAUSTED",
     "TOO_MANY_REQUESTS",
@@ -182,11 +185,14 @@ def _generate_content_once(
 
 
 def extract_financial_data_with_gemini(relevant_text: str) -> ExtractedFinancialData:
-    """Extract validated financial JSON with exactly one Gemini request.
+    """Extract validated financial JSON with one logical Gemini request.
 
     This service intentionally sends only caller-provided relevant text, makes no
-    PDF/file upload to Gemini, performs no calculations, performs no retries, and
-    requests a compact JSON-only response that matches ``ExtractedFinancialData``.
+    PDF/file upload to Gemini, performs no calculations, and requests a compact
+    JSON-only response that includes ``ai_extraction_summary`` in the same
+    ``ExtractedFinancialData`` object. Rate-limit and temporary-service errors
+    are retried with bounded exponential backoff; no second summarization call is
+    ever made.
     """
     settings = get_settings()
     api_key = settings.gemini_api_key.strip()
@@ -200,23 +206,42 @@ def extract_financial_data_with_gemini(relevant_text: str) -> ExtractedFinancial
     prompt = create_financial_extraction_prompt(relevant_text.strip())
     genai_module, errors_module, types_module = _load_google_genai_sdk()
 
-    try:
-        response = _generate_content_once(
-            api_key=api_key,
-            model=model,
-            prompt=prompt,
-            genai_module=genai_module,
-            types_module=types_module,
+    response = None
+    for attempt_number in range(1, MAX_GEMINI_RATE_LIMIT_ATTEMPTS + 1):
+        try:
+            response = _generate_content_once(
+                api_key=api_key,
+                model=model,
+                prompt=prompt,
+                genai_module=genai_module,
+                types_module=types_module,
+            )
+            break
+        except Exception as exc:
+            api_error_class = getattr(errors_module, "APIError", None)
+            if api_error_class is None or not isinstance(exc, api_error_class):
+                raise
+
+            if not _is_retryable_gemini_error(exc, errors_module):
+                raise GeminiExtractionError(
+                    "Gemini API request failed before extraction could complete."
+                ) from exc
+
+            if attempt_number == MAX_GEMINI_RATE_LIMIT_ATTEMPTS:
+                raise GeminiRateLimitError(
+                    "Gemini remained rate-limited or temporarily unavailable "
+                    "after retries."
+                ) from exc
+
+            backoff_seconds = INITIAL_GEMINI_BACKOFF_SECONDS * (
+                2 ** (attempt_number - 1)
+            )
+            time.sleep(backoff_seconds)
+
+    if response is None:
+        raise GeminiExtractionError(
+            "Gemini API request did not return a response after retry handling."
         )
-    except Exception as exc:
-        api_error_class = getattr(errors_module, "APIError", None)
-        if api_error_class is not None and isinstance(exc, api_error_class):
-            if _is_retryable_gemini_error(exc, errors_module):
-                raise GeminiRateLimitError() from exc
-            raise GeminiExtractionError(
-                "Gemini API request failed before extraction could complete."
-            ) from exc
-        raise
 
     response_text = _extract_response_text(response)
     parsed_json = _parse_json_object(response_text)
