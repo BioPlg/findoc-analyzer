@@ -44,10 +44,22 @@ export function formatScore(value?: number | null): string {
   return `${Math.round(value)}/100`;
 }
 
-export function formatRatioValue(value?: number | null): string {
+export function formatPercentageValue(value?: number | null): string {
   if (value === null || value === undefined || Number.isNaN(value)) {
     return "—";
   }
 
-  return Number.isInteger(value) ? String(value) : value.toFixed(2);
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+export function formatRatioMultiple(value?: number | null): string {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "—";
+  }
+
+  return `${value.toFixed(2)}x`;
+}
+
+export function formatRatioValue(value?: number | null): string {
+  return formatRatioMultiple(value);
 }
