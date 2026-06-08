@@ -36,11 +36,21 @@ LOCAL_REACT_ORIGINS = [
 ]
 
 
+def get_cors_origins() -> list[str]:
+    """Return local development origins plus the deployed frontend origin."""
+    settings = get_settings()
+    origins = [*LOCAL_REACT_ORIGINS]
+    if settings.frontend_origin:
+        origins.append(settings.frontend_origin)
+    return origins
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Clean temporary upload files on startup."""
     settings = get_settings()
     app.state.settings = settings
+    settings.temp_upload_dir.mkdir(parents=True, exist_ok=True)
     clean_up_old_tmp_uploads(settings.temp_upload_dir, older_than=timedelta(hours=1))
     yield
 
@@ -60,7 +70,7 @@ app.add_exception_handler(Exception, unhandled_exception_handler)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=LOCAL_REACT_ORIGINS,
+    allow_origins=get_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
