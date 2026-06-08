@@ -11,9 +11,13 @@ import {
   IncomeStatementChart,
   RatioBarChart,
 } from "../components/FinancialCharts";
-import { isRatioStatus } from "../types/analysis";
-import type { AnalysisResult, RatioStatus } from "../types/analysis";
-import { formatCompactCurrency, formatRatioValue } from "../utils/formatters";
+import {
+  BalanceSheetTable,
+  CashFlowTable,
+  IncomeStatementTable,
+  RatiosTable,
+} from "../components/FinancialTables";
+import type { AnalysisResult } from "../types/analysis";
 import type { AppRoute } from "../utils/router";
 import { routes } from "../utils/router";
 
@@ -21,13 +25,6 @@ interface DashboardPageProps {
   analysisResult: AnalysisResult | null;
   onNavigate: (route: AppRoute) => void;
 }
-
-const statusClassNames: Record<RatioStatus, string> = {
-  strong: "bg-emerald-400/15 text-emerald-200 ring-emerald-400/30",
-  average: "bg-amber-400/15 text-amber-200 ring-amber-400/30",
-  weak: "bg-rose-400/15 text-rose-200 ring-rose-400/30",
-  unknown: "bg-slate-400/15 text-slate-200 ring-slate-400/30",
-};
 
 export function DashboardPage({ analysisResult, onNavigate }: DashboardPageProps) {
   if (!analysisResult) {
@@ -60,16 +57,6 @@ export function DashboardPage({ analysisResult, onNavigate }: DashboardPageProps
   const extractionWarnings = financialData?.extraction_warnings ?? [];
   const allWarnings = [...extractionWarnings, ...ratingWarnings, ...sectionWarnings];
   const ratioResults = Array.isArray(ratios) ? ratios : [];
-  const statementData = [
-    { name: "Revenue", value: financialData?.income_statement?.revenue },
-    { name: "Net income", value: financialData?.income_statement?.net_income },
-    { name: "Assets", value: financialData?.balance_sheet?.total_assets },
-    { name: "Liabilities", value: financialData?.balance_sheet?.total_liabilities },
-    {
-      name: "Operating cash flow",
-      value: financialData?.cash_flow_statement?.operating_cash_flow,
-    },
-  ];
 
   return (
     <section className="space-y-8">
@@ -111,61 +98,20 @@ export function DashboardPage({ analysisResult, onNavigate }: DashboardPageProps
       </div>
 
       <div className="grid gap-8 xl:grid-cols-2">
-        <article className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl">
-          <h2 className="text-xl font-semibold text-white">Financial snapshot</h2>
-          <div className="mt-6 space-y-4">
-            {statementData.map((item) => (
-              <div
-                key={item.name}
-                className="flex items-center justify-between rounded-2xl bg-slate-950/70 p-4"
-              >
-                <span className="text-slate-300">{item.name}</span>
-                <span className="font-semibold text-white">
-                  {formatCompactCurrency(item.value)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </article>
+        <IncomeStatementTable
+          data={financialData?.income_statement}
+          warnings={extractionWarnings}
+        />
+        <BalanceSheetTable
+          data={financialData?.balance_sheet}
+          warnings={extractionWarnings}
+        />
+        <CashFlowTable
+          data={financialData?.cash_flow_statement}
+          warnings={extractionWarnings}
+        />
+        <RatiosTable ratios={ratioResults} warnings={extractionWarnings} />
       </div>
-
-      <article className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl">
-        <h2 className="text-xl font-semibold text-white">Calculated ratios</h2>
-        <div className="mt-6 grid gap-4 lg:grid-cols-2">
-          {ratioResults.map((ratio, index) => {
-            const ratioCandidate = ratio as Partial<typeof ratio> | null;
-            const ratioStatus = isRatioStatus(ratioCandidate?.status)
-              ? ratioCandidate.status
-              : "unknown";
-
-            return (
-              <div
-                key={ratioCandidate?.name || index}
-                className="rounded-2xl bg-slate-950/70 p-5 ring-1 ring-slate-800"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h3 className="font-semibold text-white">
-                      {ratioCandidate?.name || "Unnamed ratio"}
-                    </h3>
-                    <p className="mt-1 text-2xl font-bold text-cyan-300">
-                      {formatRatioValue(ratioCandidate?.value)}
-                    </p>
-                  </div>
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ring-1 ${statusClassNames[ratioStatus]}`}
-                  >
-                    {ratioStatus}
-                  </span>
-                </div>
-                <p className="mt-3 text-sm leading-6 text-slate-300">
-                  {ratioCandidate?.explanation || "No explanation returned."}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-      </article>
 
       <div className="grid gap-8 lg:grid-cols-2">
         <DisclaimerBox text={analysisResult.disclaimer} />
