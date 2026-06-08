@@ -87,12 +87,21 @@ class RatingResult(BaseModel):
     warnings: list[str]
 
 
+class SectionDetection(BaseModel):
+    """Detected financial statement page ranges and non-fatal detection warnings."""
+
+    income_statement_pages: list[int]
+    balance_sheet_pages: list[int]
+    cash_flow_pages: list[int]
+    warnings: list[str]
+
+
 class FullAnalysisResponse(BaseModel):
     """Complete financial document analysis response returned by the API."""
 
     extracted_financial_data: ExtractedFinancialData
     ratios: list[RatioResult]
     rating: RatingResult
-    section_detection: dict[str, bool]
+    section_detection: SectionDetection
     disclaimer: str
     privacy_note: str

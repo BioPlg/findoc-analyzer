@@ -91,6 +91,37 @@ def _combine_relevant_page_text(
     return "\n\n".join(relevant_sections)
 
 
+def locate_financial_statement_sections_from_extracted_text(
+    extracted_pdf: dict[str, Any],
+    *,
+    nearby_page_window: int = 1,
+) -> dict[str, Any]:
+    """Locate likely statement sections from already-extracted page text."""
+    if nearby_page_window < 0:
+        raise ValueError("nearby_page_window must be greater than or equal to 0.")
+
+    pages = extracted_pdf["pages"]
+
+    section_pages = {
+        section_name: _detect_section_pages(
+            pages,
+            keywords,
+            nearby_page_window=nearby_page_window,
+        )
+        for section_name, keywords in _SECTION_KEYWORDS.items()
+    }
+
+    all_relevant_pages = set().union(*section_pages.values())
+
+    return {
+        "income_statement_pages": section_pages["income_statement_pages"],
+        "balance_sheet_pages": section_pages["balance_sheet_pages"],
+        "cash_flow_pages": section_pages["cash_flow_pages"],
+        "combined_relevant_text": _combine_relevant_page_text(pages, all_relevant_pages),
+        "warnings": [],
+    }
+
+
 def locate_financial_statement_sections(
     pdf_path: str | Path,
     *,
@@ -114,27 +145,8 @@ def locate_financial_statement_sections(
         PDFExtractionError: If the file is missing, unreadable, or cannot be
             parsed as a PDF.
     """
-    if nearby_page_window < 0:
-        raise ValueError("nearby_page_window must be greater than or equal to 0.")
-
     extracted_pdf = extract_text_from_pdf(str(pdf_path))
-    pages = extracted_pdf["pages"]
-
-    section_pages = {
-        section_name: _detect_section_pages(
-            pages,
-            keywords,
-            nearby_page_window=nearby_page_window,
-        )
-        for section_name, keywords in _SECTION_KEYWORDS.items()
-    }
-
-    all_relevant_pages = set().union(*section_pages.values())
-
-    return {
-        "income_statement_pages": section_pages["income_statement_pages"],
-        "balance_sheet_pages": section_pages["balance_sheet_pages"],
-        "cash_flow_pages": section_pages["cash_flow_pages"],
-        "combined_relevant_text": _combine_relevant_page_text(pages, all_relevant_pages),
-        "warnings": [],
-    }
+    return locate_financial_statement_sections_from_extracted_text(
+        extracted_pdf,
+        nearby_page_window=nearby_page_window,
+    )

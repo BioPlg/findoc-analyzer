@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import importlib
+import importlib.util
 import json
-import time
 from typing import Any
 
 from pydantic import ValidationError
@@ -22,10 +23,6 @@ RETRYABLE_STATUS_NAMES = {
     "UNAVAILABLE",
     "DEADLINE_EXCEEDED",
 }
-MAX_GEMINI_ATTEMPTS = 3
-INITIAL_RETRY_DELAY_SECONDS = 1.0
-
-
 class GeminiConfigurationError(RuntimeError):
     """Raised when Gemini extraction is not configured correctly."""
 
@@ -44,14 +41,17 @@ class GeminiResponseValidationError(GeminiExtractionError):
 
 def _load_google_genai_sdk() -> tuple[Any, Any, Any]:
     """Import the official Google Gen AI SDK lazily for test friendliness."""
-    try:
-        from google import genai
-        from google.genai import errors, types
-    except ImportError as exc:
+    if (
+        importlib.util.find_spec("google") is None
+        or importlib.util.find_spec("google.genai") is None
+    ):
         raise GeminiConfigurationError(
             "Google Gemini SDK is not installed. Install the google-genai package."
-        ) from exc
+        )
 
+    genai = importlib.import_module("google.genai")
+    errors = importlib.import_module("google.genai.errors")
+    types = importlib.import_module("google.genai.types")
     return genai, errors, types
 
 
@@ -152,11 +152,11 @@ def _generate_content_once(
 
 
 def extract_financial_data_with_gemini(relevant_text: str) -> ExtractedFinancialData:
-    """Extract validated financial JSON from relevant document text with Gemini.
+    """Extract validated financial JSON with exactly one Gemini request.
 
     This service intentionally sends only caller-provided relevant text, makes no
-    PDF/file upload to Gemini, performs no calculations, and requests a compact
-    JSON-only response that matches ``ExtractedFinancialData``.
+    PDF/file upload to Gemini, performs no calculations, performs no retries, and
+    requests a compact JSON-only response that matches ``ExtractedFinancialData``.
     """
     settings = get_settings()
     api_key = settings.gemini_api_key.strip()
@@ -172,34 +172,22 @@ def extract_financial_data_with_gemini(relevant_text: str) -> ExtractedFinancial
     prompt = create_financial_extraction_prompt(relevant_text.strip())
     genai_module, errors_module, types_module = _load_google_genai_sdk()
 
-    last_error: Exception | None = None
-    for attempt in range(1, MAX_GEMINI_ATTEMPTS + 1):
-        try:
-            response = _generate_content_once(
-                api_key=api_key,
-                model=model,
-                prompt=prompt,
-                genai_module=genai_module,
-                types_module=types_module,
-            )
-            response_text = _extract_response_text(response)
-            parsed_json = _parse_json_object(response_text)
-            return _validate_extracted_financial_data(parsed_json)
-        except Exception as exc:
-            if not _is_retryable_gemini_error(exc, errors_module):
-                api_error_class = getattr(errors_module, "APIError", None)
-                if api_error_class is not None and isinstance(exc, api_error_class):
-                    raise GeminiExtractionError(
-                        "Gemini API request failed before extraction could complete."
-                    ) from exc
-                raise
+    try:
+        response = _generate_content_once(
+            api_key=api_key,
+            model=model,
+            prompt=prompt,
+            genai_module=genai_module,
+            types_module=types_module,
+        )
+    except Exception as exc:
+        api_error_class = getattr(errors_module, "APIError", None)
+        if api_error_class is not None and isinstance(exc, api_error_class):
+            raise GeminiExtractionError(
+                "Gemini API request failed before extraction could complete."
+            ) from exc
+        raise
 
-            last_error = exc
-            if attempt == MAX_GEMINI_ATTEMPTS:
-                break
-
-            time.sleep(INITIAL_RETRY_DELAY_SECONDS * (2 ** (attempt - 1)))
-
-    raise GeminiExtractionError(
-        "Gemini extraction failed after retrying temporary or rate-limit errors."
-    ) from last_error
+    response_text = _extract_response_text(response)
+    parsed_json = _parse_json_object(response_text)
+    return _validate_extracted_financial_data(parsed_json)
