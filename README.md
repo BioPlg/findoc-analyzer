@@ -135,6 +135,17 @@ Backend configuration is loaded from environment variables or `backend/.env`:
 - `TEMP_UPLOAD_DIR`: defaults to `backend/uploads/tmp`.
 - `MAX_UPLOAD_MB`: defaults to `25`.
 
+### Backend tests
+
+Run the backend pytest suite from the backend directory:
+
+```bash
+cd backend
+pytest
+```
+
+The tests use mocks for Gemini-backed extraction and must not call the real Gemini API.
+
 ### Development PDF text extraction test
 
 The backend exposes `POST /api/extract-text/{file_id}` for development testing after a file has been uploaded with `POST /api/upload`. It reads the matching temporary PDF from `backend/uploads/tmp/`, extracts text page by page with `pdfplumber`, and intentionally does **not** delete the PDF yet.
