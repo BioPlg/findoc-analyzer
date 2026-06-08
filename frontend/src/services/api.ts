@@ -1,4 +1,8 @@
-import type { AnalysisResult, TemporaryUploadResponse } from "../types/analysis";
+import type {
+  AnalysisResult,
+  ExtractedFinancialData,
+  TemporaryUploadResponse,
+} from "../types/analysis";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ?? "http://localhost:8000";
@@ -77,4 +81,25 @@ export async function uploadAndAnalyzeFinancialDocument(
 ): Promise<AnalysisResult> {
   const upload = await uploadFinancialDocument(file);
   return analyzeUploadedDocument(upload.file_id);
+}
+
+export async function rateManualFinancialData(
+  data: ExtractedFinancialData,
+): Promise<AnalysisResult> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/rate-manual`, {
+      body: JSON.stringify(data),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    });
+  } catch (error) {
+    throw new ApiRequestError("Backend unavailable", {
+      detail: error instanceof Error ? error.message : undefined,
+    });
+  }
+
+  return parseJsonResponse<AnalysisResult>(response);
 }

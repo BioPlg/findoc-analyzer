@@ -39,7 +39,11 @@ export function App() {
         />
       ) : null}
       {currentRoute === "/dashboard" ? (
-        <DashboardPage analysisResult={analysisResult} onNavigate={handleNavigate} />
+        <DashboardPage
+          analysisResult={analysisResult}
+          onAnalysisUpdate={setAnalysisResult}
+          onNavigate={handleNavigate}
+        />
       ) : null}
     </Layout>
   );

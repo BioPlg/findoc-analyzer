@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   DisclaimerBox,
   ExtractionSummaryBox,
@@ -17,12 +18,19 @@ import {
   IncomeStatementTable,
   RatiosTable,
 } from "../components/FinancialTables";
-import type { AnalysisResult, SectionDetection } from "../types/analysis";
+import { ManualReviewForm } from "../components/ManualReviewForm";
+import { rateManualFinancialData } from "../services/api";
+import type {
+  AnalysisResult,
+  ExtractedFinancialData,
+  SectionDetection,
+} from "../types/analysis";
 import type { AppRoute } from "../utils/router";
 import { routes } from "../utils/router";
 
 interface DashboardPageProps {
   analysisResult: AnalysisResult | null;
+  onAnalysisUpdate: (analysisResult: AnalysisResult) => void;
   onNavigate: (route: AppRoute) => void;
 }
 
@@ -131,8 +139,12 @@ function SectionDetectionPages({
 
 export function DashboardPage({
   analysisResult,
+  onAnalysisUpdate,
   onNavigate,
 }: DashboardPageProps) {
+  const [isManualReviewOpen, setIsManualReviewOpen] = useState(false);
+  const [isSavingManualReview, setIsSavingManualReview] = useState(false);
+  const [manualReviewError, setManualReviewError] = useState<string | null>(null);
   if (!analysisResult) {
     return (
       <section className="mx-auto max-w-2xl rounded-3xl border border-slate-800 bg-slate-900/90 p-8 text-center shadow-xl">
@@ -171,6 +183,25 @@ export function DashboardPage({
   ];
   const ratioResults = Array.isArray(ratios) ? ratios : [];
 
+  async function handleManualReviewSave(editedData: ExtractedFinancialData) {
+    setIsSavingManualReview(true);
+    setManualReviewError(null);
+
+    try {
+      const updatedAnalysis = await rateManualFinancialData(editedData);
+      onAnalysisUpdate(updatedAnalysis);
+      setIsManualReviewOpen(false);
+    } catch (error) {
+      setManualReviewError(
+        error instanceof Error
+          ? error.message
+          : "Unable to recalculate the rating from edited data.",
+      );
+    } finally {
+      setIsSavingManualReview(false);
+    }
+  }
+
   return (
     <section className="space-y-8">
       <div className="rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-900 via-slate-900 to-sky-950/60 p-6 shadow-xl lg:p-8">
@@ -203,15 +234,45 @@ export function DashboardPage({
               </div>
             </dl>
           </div>
-          <button
-            className="inline-flex w-fit rounded-full border border-slate-700 px-5 py-3 text-sm font-semibold text-slate-100 transition hover:border-sky-300 hover:text-sky-100"
-            type="button"
-            onClick={() => onNavigate(routes.upload)}
-          >
-            Back to upload page
-          </button>
+          <div className="flex flex-col gap-3 sm:flex-row lg:flex-col xl:flex-row">
+            <button
+              className="inline-flex w-fit rounded-full bg-sky-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-300"
+              type="button"
+              onClick={() => {
+                setManualReviewError(null);
+                setIsManualReviewOpen((isOpen) => !isOpen);
+              }}
+            >
+              Review/Edit Extracted Data
+            </button>
+            <button
+              className="inline-flex w-fit rounded-full border border-slate-700 px-5 py-3 text-sm font-semibold text-slate-100 transition hover:border-sky-300 hover:text-sky-100"
+              type="button"
+              onClick={() => onNavigate(routes.upload)}
+            >
+              Back to upload page
+            </button>
+          </div>
         </div>
       </div>
+
+      <div className="rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 text-sm font-semibold text-amber-100">
+        Editing values will recalculate the rating. Manual edits update only the
+        current dashboard state and are not saved permanently.
+      </div>
+
+      {isManualReviewOpen ? (
+        <ManualReviewForm
+          data={financialData}
+          error={manualReviewError}
+          isSaving={isSavingManualReview}
+          onCancel={() => {
+            setManualReviewError(null);
+            setIsManualReviewOpen(false);
+          }}
+          onSave={handleManualReviewSave}
+        />
+      ) : null}
 
       <div className="grid gap-8 xl:grid-cols-[1fr_22rem]">
         <OverallRatingCard
