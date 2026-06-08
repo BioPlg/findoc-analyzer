@@ -6,14 +6,29 @@ stored only temporarily during processing and deleted when analysis completes.
 
 from contextlib import asynccontextmanager
 from datetime import timedelta
+import logging
 
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.extract import router as extract_router
 from app.api.upload import router as upload_router
 from app.config import get_settings
+from app.errors import (
+    AppError,
+    app_error_handler,
+    http_exception_handler,
+    unhandled_exception_handler,
+    validation_exception_handler,
+)
 from app.utils.uploads import clean_up_old_tmp_uploads
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+)
 
 LOCAL_REACT_ORIGINS = [
     "http://localhost:5173",
@@ -38,6 +53,10 @@ app = FastAPI(
 )
 
 app.state.settings = get_settings()
+app.add_exception_handler(AppError, app_error_handler)
+app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(Exception, unhandled_exception_handler)
 
 app.add_middleware(
     CORSMiddleware,

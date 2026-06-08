@@ -10,33 +10,63 @@ from typing import Any
 from pydantic import ValidationError
 
 from app.config import get_settings
+from app.errors import (
+    GeminiAPIFailureError,
+    GeminiAPIKeyMissingError,
+    GeminiRateLimitError as PublicGeminiRateLimitError,
+    InvalidGeminiJSONError as PublicInvalidGeminiJSONError,
+)
 from app.schemas.financials import ExtractedFinancialData
 from app.services.prompt_builder_service import create_financial_extraction_prompt
 
 DEFAULT_GEMINI_EXTRACTION_MODEL = "gemini-2.5-flash"
-RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
+RETRYABLE_STATUS_CODES = {429, 503, 504}
 RETRYABLE_STATUS_NAMES = {
     "RESOURCE_EXHAUSTED",
     "TOO_MANY_REQUESTS",
-    "INTERNAL",
-    "BAD_GATEWAY",
     "UNAVAILABLE",
     "DEADLINE_EXCEEDED",
 }
-class GeminiConfigurationError(RuntimeError):
+
+
+class GeminiConfigurationError(GeminiAPIFailureError):
     """Raised when Gemini extraction is not configured correctly."""
 
+    def __init__(self, internal_message: str | None = None) -> None:
+        super().__init__()
+        self.internal_message = internal_message
 
-class GeminiExtractionError(RuntimeError):
+
+class GeminiExtractionError(GeminiAPIFailureError):
     """Raised when Gemini extraction cannot complete successfully."""
 
+    def __init__(self, internal_message: str | None = None) -> None:
+        super().__init__()
+        self.internal_message = internal_message
 
-class GeminiInvalidJSONError(GeminiExtractionError):
+
+class GeminiInvalidJSONError(PublicInvalidGeminiJSONError, GeminiExtractionError):
     """Raised when Gemini returns a response that is not valid JSON."""
 
+    def __init__(self, internal_message: str | None = None) -> None:
+        super().__init__()
+        self.internal_message = internal_message
 
-class GeminiResponseValidationError(GeminiExtractionError):
+
+class GeminiResponseValidationError(PublicInvalidGeminiJSONError, GeminiExtractionError):
     """Raised when Gemini JSON does not match the extraction schema."""
+
+    def __init__(self, internal_message: str | None = None) -> None:
+        super().__init__()
+        self.internal_message = internal_message
+
+
+class GeminiRateLimitError(PublicGeminiRateLimitError, GeminiExtractionError):
+    """Raised when Gemini is rate-limited or temporarily unavailable."""
+
+    def __init__(self, internal_message: str | None = None) -> None:
+        super().__init__()
+        self.internal_message = internal_message
 
 
 def _load_google_genai_sdk() -> tuple[Any, Any, Any]:
@@ -161,9 +191,7 @@ def extract_financial_data_with_gemini(relevant_text: str) -> ExtractedFinancial
     settings = get_settings()
     api_key = settings.gemini_api_key.strip()
     if not api_key:
-        raise GeminiConfigurationError(
-            "GEMINI_API_KEY is not configured. Set GEMINI_API_KEY before running Gemini extraction."
-        )
+        raise GeminiAPIKeyMissingError()
 
     model = (settings.gemini_extraction_model or DEFAULT_GEMINI_EXTRACTION_MODEL).strip()
     if not model:
@@ -183,6 +211,8 @@ def extract_financial_data_with_gemini(relevant_text: str) -> ExtractedFinancial
     except Exception as exc:
         api_error_class = getattr(errors_module, "APIError", None)
         if api_error_class is not None and isinstance(exc, api_error_class):
+            if _is_retryable_gemini_error(exc, errors_module):
+                raise GeminiRateLimitError() from exc
             raise GeminiExtractionError(
                 "Gemini API request failed before extraction could complete."
             ) from exc

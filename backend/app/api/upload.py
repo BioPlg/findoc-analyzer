@@ -1,14 +1,19 @@
 """Temporary PDF upload endpoint for FinDoc Analyzer."""
 
+import logging
 from pathlib import Path
 from typing import Annotated
 from uuid import uuid4
 
-from fastapi import APIRouter, File, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, File, Request, UploadFile
 from pydantic import BaseModel
+
+from app.errors import AppError, InvalidPDFError, UploadTooLargeError
 
 PDF_CONTENT_TYPES = {"application/pdf", "application/x-pdf"}
 UPLOAD_CHUNK_SIZE = 1024 * 1024
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["upload"])
 
@@ -29,10 +34,7 @@ def _has_pdf_name_and_type(file: UploadFile) -> bool:
 
 def _raise_non_pdf_error() -> None:
     """Raise the standard error for non-PDF uploads."""
-    raise HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        detail="Only PDF files are accepted. Please upload a PDF file.",
-    )
+    raise InvalidPDFError("Only PDF files are accepted. Please upload a PDF file.")
 
 
 @router.post("/upload", response_model=TemporaryUploadResponse)
@@ -65,23 +67,20 @@ async def upload_pdf(
 
                 bytes_written += len(chunk)
                 if bytes_written > max_bytes:
-                    raise HTTPException(
-                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                        detail=f"Uploaded file exceeds the {settings.max_upload_mb} MB size limit.",
+                    raise UploadTooLargeError(
+                        f"Uploaded file exceeds the {settings.max_upload_mb} MB size limit.",
                     )
                 output_file.write(chunk)
 
             if first_chunk:
                 _raise_non_pdf_error()
-    except HTTPException:
+    except AppError:
         temp_file_path.unlink(missing_ok=True)
         raise
     except OSError as exc:
         temp_file_path.unlink(missing_ok=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Unable to save uploaded file temporarily.",
-        ) from exc
+        logger.exception("Failed to save temporary PDF upload")
+        raise AppError("Unable to save uploaded file temporarily.") from exc
     finally:
         await file.close()
 

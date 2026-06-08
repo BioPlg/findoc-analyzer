@@ -10,12 +10,17 @@ const API_BASE_URL =
 export class ApiRequestError extends Error {
   readonly status?: number;
   readonly detail?: string;
+  readonly details?: unknown;
 
-  constructor(message: string, options: { status?: number; detail?: string } = {}) {
+  constructor(
+    message: string,
+    options: { status?: number; detail?: string; details?: unknown } = {},
+  ) {
     super(message);
     this.name = "ApiRequestError";
     this.status = options.status;
     this.detail = options.detail;
+    this.details = options.details;
   }
 }
 
@@ -26,18 +31,25 @@ async function parseJsonResponse<T>(response: Response): Promise<T> {
 
   let message = "The request failed. Please try again.";
   let detail: string | undefined;
+  let details: unknown;
 
   try {
-    const errorBody = (await response.json()) as { detail?: string };
-    if (errorBody.detail) {
-      detail = errorBody.detail;
-      message = errorBody.detail;
+    const errorBody = (await response.json()) as {
+      detail?: string;
+      details?: unknown;
+      message?: string;
+    };
+    const publicMessage = errorBody.message ?? errorBody.detail;
+    if (publicMessage) {
+      detail = publicMessage;
+      message = publicMessage;
     }
+    details = errorBody.details;
   } catch {
     message = response.statusText || message;
   }
 
-  throw new ApiRequestError(message, { detail, status: response.status });
+  throw new ApiRequestError(message, { detail, details, status: response.status });
 }
 
 export async function uploadFinancialDocument(
