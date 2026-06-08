@@ -10,6 +10,7 @@ from datetime import timedelta
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.extract import router as extract_router
 from app.api.upload import router as upload_router
 from app.config import get_settings
 from app.utils.uploads import clean_up_old_tmp_uploads
@@ -54,3 +55,4 @@ def health_check() -> dict[str, str]:
 
 
 app.include_router(upload_router)
+app.include_router(extract_router)
