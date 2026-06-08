@@ -94,11 +94,11 @@ export function OverallRatingCard({
   score,
 }: OverallRatingCardProps) {
   return (
-    <article className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl lg:p-8">
+    <article className="rounded-3xl border border-slate-800 bg-slate-900/85 p-6 shadow-xl ring-1 ring-white/5 lg:p-8">
       <div className="grid gap-6 lg:grid-cols-[1fr_18rem] lg:items-start">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.3em] text-sky-300">
-            Python-generated final rating summary
+            Python-calculated rating summary
           </p>
           <h2 className="mt-3 text-3xl font-bold text-white lg:text-4xl">
             {companyName ?? "Unknown company"}
@@ -110,7 +110,7 @@ export function OverallRatingCard({
           <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-400">
             Scores run from 0 to 100. A higher score means the uploaded report
             showed stronger profitability, financial health, and cash flow
-            signals for this educational review.
+            signals in this educational summary.
           </p>
         </div>
         <ScoreBadge label={label} score={score} />
@@ -143,7 +143,7 @@ export function PillarScoreCards({
   ];
 
   return (
-    <article className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl">
+    <article className="rounded-3xl border border-slate-800 bg-slate-900/85 p-6 shadow-xl ring-1 ring-white/5">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.25em] text-sky-300">
@@ -191,10 +191,10 @@ export function ExtractionSummaryBox({ text }: TextBoxProps) {
   return (
     <article className="rounded-3xl border border-sky-400/20 bg-sky-400/10 p-6 shadow-xl ring-1 ring-sky-400/10">
       <p className="text-sm font-semibold uppercase tracking-[0.25em] text-sky-200">
-        Gemini-generated extraction summary
+        Gemini extraction summary
       </p>
       <h2 className="mt-2 text-xl font-semibold text-white">
-        What Gemini found
+        Key numbers Gemini found
       </h2>
       <p className="mt-4 leading-7 text-slate-200">
         {text || "No Gemini-generated extraction summary was returned."}
@@ -225,7 +225,7 @@ export function PrivacyNoteBox({ text }: TextBoxProps) {
       </p>
       <p className="mt-3 leading-7 text-slate-200">
         {text ||
-          "Dashboard data is temporary frontend session data only. If the page refreshes, upload the document again to rebuild the analysis."}
+          "Uploaded documents are processed temporarily and deleted after analysis. Dashboard data stays in this browser session only, so refresh the page to clear it."}
       </p>
     </aside>
   );

@@ -47,30 +47,30 @@ function formatPageList(pages?: number[] | null): string {
 
 function WarningList({ warnings }: { warnings: string[] }) {
   return (
-    <article className="rounded-3xl border border-slate-800 bg-slate-900/90 p-6 shadow-xl">
-      <p className="text-sm font-semibold uppercase tracking-[0.25em] text-sky-300">
-        Extraction warnings
+    <article className="rounded-3xl border border-amber-300/25 bg-amber-300/10 p-6 shadow-xl ring-1 ring-amber-200/10">
+      <p className="text-sm font-semibold uppercase tracking-[0.25em] text-amber-100">
+        Review notes
       </p>
       <h2 className="mt-2 text-2xl font-semibold text-white">
         Items to double-check
       </h2>
-      <p className="mt-2 text-sm leading-6 text-slate-400">
-        These notes explain fields that were missing, uncertain, or flagged
-        while the document was read.
+      <p className="mt-2 text-sm leading-6 text-amber-50/85">
+        These calm notes highlight fields that were missing, uncertain, or worth
+        verifying against the original document. They are not alarms.
       </p>
-      <ul className="mt-5 space-y-3 text-sm leading-6 text-slate-200">
+      <ul className="mt-5 space-y-3 text-sm leading-6 text-slate-100">
         {warnings.length ? (
           warnings.map((warning) => (
             <li
               key={warning}
-              className="rounded-2xl border border-slate-700 bg-slate-950/60 p-4"
+              className="rounded-2xl border border-amber-200/20 bg-slate-950/55 p-4"
             >
               {warning}
             </li>
           ))
         ) : (
-          <li className="rounded-2xl border border-slate-700 bg-slate-950/60 p-4">
-            No extraction warnings were returned for this analysis.
+          <li className="rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4 text-emerald-50">
+            No review notes were returned for this analysis.
           </li>
         )}
       </ul>
@@ -102,7 +102,7 @@ function SectionDetectionPages({
   ];
 
   return (
-    <article className="rounded-3xl border border-slate-800 bg-slate-900/90 p-6 shadow-xl">
+    <article className="rounded-3xl border border-slate-800 bg-slate-900/85 p-6 shadow-xl ring-1 ring-white/5">
       <p className="text-sm font-semibold uppercase tracking-[0.25em] text-sky-300">
         Section detection pages used
       </p>
@@ -147,7 +147,7 @@ export function DashboardPage({
   const [manualReviewError, setManualReviewError] = useState<string | null>(null);
   if (!analysisResult) {
     return (
-      <section className="mx-auto max-w-2xl rounded-3xl border border-slate-800 bg-slate-900/90 p-8 text-center shadow-xl">
+      <section className="mx-auto max-w-2xl rounded-[2rem] border border-slate-800 bg-slate-900/90 p-8 text-center shadow-xl ring-1 ring-white/5">
         <p className="text-sm font-semibold uppercase tracking-[0.3em] text-sky-300">
           Dashboard
         </p>
@@ -160,7 +160,7 @@ export function DashboardPage({
           type="button"
           onClick={() => onNavigate(routes.upload)}
         >
-          Back to upload page
+          Analyze another document
         </button>
       </section>
     );
@@ -204,7 +204,7 @@ export function DashboardPage({
 
   return (
     <section className="space-y-8">
-      <div className="rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-900 via-slate-900 to-sky-950/60 p-6 shadow-xl lg:p-8">
+      <div className="rounded-[2rem] border border-slate-800 bg-gradient-to-br from-slate-900 via-slate-900 to-sky-950/60 p-6 shadow-2xl shadow-slate-950/30 ring-1 ring-white/5 lg:p-8">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-sky-300">
@@ -243,20 +243,20 @@ export function DashboardPage({
                 setIsManualReviewOpen((isOpen) => !isOpen);
               }}
             >
-              Review/Edit Extracted Data
+              Review extracted data
             </button>
             <button
               className="inline-flex w-fit rounded-full border border-slate-700 px-5 py-3 text-sm font-semibold text-slate-100 transition hover:border-sky-300 hover:text-sky-100"
               type="button"
               onClick={() => onNavigate(routes.upload)}
             >
-              Back to upload page
+              Analyze another document
             </button>
           </div>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 text-sm font-semibold text-amber-100">
+      <div className="rounded-2xl border border-amber-300/25 bg-amber-300/10 p-4 text-sm font-semibold text-amber-50 ring-1 ring-amber-200/10">
         Editing values will recalculate the rating. Manual edits update only the
         current dashboard state and are not saved permanently.
       </div>
@@ -323,7 +323,7 @@ export function DashboardPage({
       </div>
 
       <div className="grid gap-8 lg:grid-cols-2">
-        <article className="rounded-3xl border border-slate-800 bg-slate-900/90 p-6 shadow-xl">
+        <article className="rounded-3xl border border-slate-800 bg-slate-900/85 p-6 shadow-xl ring-1 ring-white/5">
           <p className="text-sm font-semibold uppercase tracking-[0.25em] text-sky-300">
             Extraction notes
           </p>

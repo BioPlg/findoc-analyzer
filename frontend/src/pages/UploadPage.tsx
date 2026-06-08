@@ -208,110 +208,166 @@ export function UploadPage({ onAnalysisComplete, onNavigate }: UploadPageProps) 
     }
   }
 
+  const isBusy = step === "uploading" || step === "analyzing";
+
   return (
-    <section className="mx-auto max-w-3xl rounded-3xl border border-slate-800 bg-slate-900/80 p-8 shadow-xl">
-      <p className="text-sm font-semibold uppercase tracking-[0.3em] text-cyan-300">
-        Upload
-      </p>
-      <h1 className="mt-3 text-3xl font-bold text-white">Analyze a PDF filing</h1>
-      <p className="mt-4 text-slate-300">
-        Select one PDF, upload it temporarily, then run analysis when you are ready.
-        The dashboard keeps only the current in-memory result for this browser session.
-      </p>
+    <section className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+      <aside className="rounded-[2rem] border border-slate-800 bg-slate-900/70 p-6 shadow-xl ring-1 ring-white/5 sm:p-8">
+        <p className="text-sm font-semibold uppercase tracking-[0.28em] text-sky-300">
+          Analyze a Document
+        </p>
+        <h1 className="mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">
+          Upload one PDF financial report.
+        </h1>
+        <p className="mt-4 text-base leading-7 text-slate-300">
+          We will upload it temporarily, ask Gemini to find the key financial
+          numbers, then use Python to calculate ratios for the dashboard.
+        </p>
 
-      <div className="mt-6 rounded-2xl border border-cyan-400/30 bg-cyan-400/10 p-4 text-sm font-medium text-cyan-100">
-        {TEMPORARY_PROCESSING_MESSAGE}
-      </div>
+        <div className="mt-6 rounded-3xl border border-sky-400/20 bg-sky-400/10 p-5 text-sm leading-6 text-sky-50">
+          <p className="font-semibold text-white">Privacy-friendly processing</p>
+          <p className="mt-2 text-sky-100/90">{TEMPORARY_PROCESSING_MESSAGE}</p>
+        </div>
 
-      <div className="mt-8 space-y-6">
-        <label
-          className={`block rounded-2xl border border-dashed p-8 text-center transition ${
-            isDragging
-              ? "border-cyan-300 bg-cyan-400/10"
-              : "border-slate-600 bg-slate-950/70 hover:border-cyan-300"
-          }`}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-        >
-          <span className="block text-lg font-semibold text-white">
-            {selectedFile ? selectedFile.name : "Drag and drop a PDF here"}
-          </span>
-          <span className="mt-2 block text-sm text-slate-400">
-            Or choose a PDF from your device. Only .pdf files are accepted.
-          </span>
-          <input
-            ref={fileInputRef}
-            accept="application/pdf,.pdf"
-            className="sr-only"
-            type="file"
-            onChange={handleFileInputChange}
-          />
-          <span className="mt-5 inline-flex rounded-full border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200">
-            Select PDF
-          </span>
-        </label>
+        <ol className="mt-6 space-y-3 text-sm leading-6 text-slate-300">
+          {[
+            "Upload the PDF from your device.",
+            "Start analysis when the upload completes.",
+            "Review the rating, charts, and gentle review notes on the dashboard.",
+          ].map((item, index) => (
+            <li key={item} className="flex gap-3 rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sky-400/15 text-xs font-bold text-sky-100 ring-1 ring-sky-400/25">
+                {index + 1}
+              </span>
+              <span>{item}</span>
+            </li>
+          ))}
+        </ol>
+      </aside>
 
-        {selectedFile ? (
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-sm text-slate-300">
-            Selected file: <span className="font-semibold text-white">{selectedFile.name}</span>
+      <div className="rounded-[2rem] border border-slate-800 bg-slate-900/85 p-5 shadow-2xl shadow-slate-950/30 ring-1 ring-white/5 sm:p-8">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.25em] text-sky-300">
+              Secure upload flow
+            </p>
+            <h2 className="mt-2 text-2xl font-bold text-white">Choose your PDF</h2>
           </div>
-        ) : null}
+          {isBusy ? (
+            <span className="inline-flex w-fit items-center gap-2 rounded-full border border-sky-400/25 bg-sky-400/10 px-3 py-2 text-sm font-semibold text-sky-100">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-sky-300" />
+              Working
+            </span>
+          ) : null}
+        </div>
 
-        {uploadResponse ? (
-          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-100">
-            Upload complete: <span className="font-semibold">{uploadResponse.filename}</span>
-          </div>
-        ) : null}
-
-        {step === "analyzing" ? (
-          <div className="rounded-2xl border border-cyan-500/30 bg-slate-950/70 p-4 text-sm text-cyan-100" role="status">
-            Analyzing your PDF. This may take a moment…
-          </div>
-        ) : null}
-
-        {error ? (
-          <div
-            className="rounded-2xl border border-rose-700 bg-rose-950/70 p-4 text-rose-100"
-            role="alert"
+        <div className="mt-6 space-y-5">
+          <label
+            className={`group block rounded-3xl border border-dashed p-6 text-center transition sm:p-10 ${
+              isDragging
+                ? "border-sky-300 bg-sky-400/10 shadow-lg shadow-sky-950/20"
+                : "border-slate-600 bg-slate-950/60 hover:border-sky-300 hover:bg-slate-950/80"
+            }`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
           >
-            <p className="font-semibold text-white">Something needs your attention</p>
-            <p className="mt-2 text-sm leading-6">{error.message}</p>
-            {error.retryAction ? (
-              <button
-                className="mt-4 rounded-full bg-white px-4 py-2 text-sm font-semibold text-rose-950 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={step === "uploading" || step === "analyzing"}
-                type="button"
-                onClick={handleRetry}
-              >
-                Try again
-              </button>
-            ) : null}
-          </div>
-        ) : null}
+            <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-400/15 text-2xl ring-1 ring-sky-400/25">
+              ↥
+            </span>
+            <span className="mt-5 block break-words text-lg font-semibold text-white">
+              {selectedFile ? selectedFile.name : "Drag and drop a PDF here"}
+            </span>
+            <span className="mt-2 block text-sm leading-6 text-slate-400">
+              Or choose a PDF from your device. Only .pdf files are accepted.
+            </span>
+            <input
+              ref={fileInputRef}
+              accept="application/pdf,.pdf"
+              className="sr-only"
+              type="file"
+              onChange={handleFileInputChange}
+            />
+            <span className="mt-6 inline-flex rounded-full border border-slate-700 bg-slate-900 px-5 py-2.5 text-sm font-semibold text-slate-100 transition group-hover:border-sky-300 group-hover:text-sky-100">
+              Select PDF
+            </span>
+          </label>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <button
-            className="rounded-full bg-cyan-400 px-6 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={!canUpload}
-            type="button"
-            onClick={handleUpload}
-          >
-            {step === "uploading" ? "Uploading…" : "Upload PDF"}
-          </button>
+          {selectedFile ? (
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm leading-6 text-slate-300">
+              <span className="font-semibold text-white">Selected file:</span> {selectedFile.name}
+            </div>
+          ) : null}
 
           {uploadResponse ? (
-            <button
-              className="rounded-full bg-emerald-400 px-6 py-3 font-semibold text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={!canAnalyze}
-              type="button"
-              onClick={handleAnalyze}
-            >
-              {step === "analyzing" ? "Analyzing…" : "Analyze Document"}
-            </button>
+            <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 p-4 text-sm leading-6 text-emerald-100">
+              <span className="font-semibold text-white">Upload complete:</span> {uploadResponse.filename}
+            </div>
           ) : null}
+
+          {isBusy ? (
+            <div className="rounded-2xl border border-sky-400/25 bg-slate-950/70 p-4" role="status">
+              <div className="flex items-center gap-3 text-sm font-semibold text-sky-100">
+                <span className="h-3 w-3 animate-pulse rounded-full bg-sky-300" />
+                {step === "uploading" ? "Uploading your PDF…" : "Analyzing your PDF…"}
+              </div>
+              <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-800">
+                <div className="h-full w-2/3 animate-pulse rounded-full bg-gradient-to-r from-sky-300 to-blue-400" />
+              </div>
+              <p className="mt-3 text-sm leading-6 text-slate-400">
+                This can take a moment while the document is read and the ratios are calculated.
+              </p>
+            </div>
+          ) : null}
+
+          {error ? (
+            <div
+              className="rounded-2xl border border-amber-300/35 bg-amber-300/10 p-4 text-amber-50 shadow-lg shadow-amber-950/10"
+              role="alert"
+            >
+              <p className="font-semibold text-white">Please review this note</p>
+              <p className="mt-2 text-sm leading-6 text-amber-50/90">{error.message}</p>
+              {error.retryAction ? (
+                <button
+                  className="mt-4 rounded-full bg-amber-100 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={step === "uploading" || step === "analyzing"}
+                  type="button"
+                  onClick={handleRetry}
+                >
+                  Try again
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <button
+              className="rounded-full bg-sky-400 px-6 py-3 font-semibold text-slate-950 shadow-lg shadow-sky-950/20 transition hover:bg-sky-300 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={!canUpload}
+              type="button"
+              onClick={handleUpload}
+            >
+              {step === "uploading" ? "Uploading…" : "Upload PDF"}
+            </button>
+
+            {uploadResponse ? (
+              <button
+                className="rounded-full bg-blue-400 px-6 py-3 font-semibold text-slate-950 shadow-lg shadow-blue-950/20 transition hover:bg-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={!canAnalyze}
+                type="button"
+                onClick={handleAnalyze}
+              >
+                {step === "analyzing" ? "Analyzing…" : "Analyze Document"}
+              </button>
+            ) : (
+              <div className="rounded-full border border-slate-800 bg-slate-950/50 px-6 py-3 text-center text-sm font-semibold text-slate-500">
+                Analyze after upload
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </section>
   );
+
 }

@@ -23,7 +23,7 @@ interface RatiosTableProps {
   warnings?: string[] | null;
 }
 
-const verificationNote = "Please verify extracted numbers against the original document.";
+const verificationNote = "Friendly reminder: compare important extracted numbers with the original document.";
 
 const ratioStatusClassNames: Record<RatioStatus, string> = {
   strong: "bg-emerald-400/15 text-emerald-200 ring-emerald-400/30",
@@ -74,7 +74,7 @@ function TableShell({
   const extractionWarnings = warnings?.filter(Boolean) ?? [];
 
   return (
-    <article className="rounded-3xl border border-slate-800 bg-slate-900/80 p-4 shadow-xl sm:p-6">
+    <article className="rounded-3xl border border-slate-800 bg-slate-900/85 p-4 shadow-xl ring-1 ring-white/5 sm:p-6">
       <div>
         <h2 className="text-xl font-semibold text-white">{title}</h2>
         <p className="mt-2 text-sm leading-6 text-slate-400">{description}</p>
@@ -85,9 +85,9 @@ function TableShell({
       </div>
 
       {extractionWarnings.length > 0 ? (
-        <div className="mt-4 rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4">
-          <p className="text-sm font-semibold text-amber-100">Extraction warnings</p>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-amber-50/90">
+        <div className="mt-4 rounded-2xl border border-amber-300/25 bg-amber-300/10 p-4">
+          <p className="text-sm font-semibold text-amber-50">Review notes</p>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-amber-50/85">
             {extractionWarnings.map((warning) => (
               <li key={warning}>{warning}</li>
             ))}
