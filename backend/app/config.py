@@ -7,8 +7,11 @@ from ``backend/.env`` when present. Keep secrets out of source control.
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field, PositiveInt
+from pydantic import Field, PositiveInt, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
@@ -18,6 +21,14 @@ class Settings(BaseSettings):
     gemini_extraction_model: str = "gemini-2.5-flash"
     temp_upload_dir: Path = Path("backend/uploads/tmp")
     max_upload_mb: PositiveInt = 25
+
+    @field_validator("temp_upload_dir", mode="after")
+    @classmethod
+    def resolve_temp_upload_dir(cls, upload_dir: Path) -> Path:
+        """Resolve relative upload paths from the repository root."""
+        if upload_dir.is_absolute():
+            return upload_dir
+        return REPO_ROOT / upload_dir
 
     model_config = SettingsConfigDict(env_file="backend/.env", extra="ignore")
 
