@@ -37,14 +37,6 @@ interface DashboardPageProps {
 const temporaryMissingMessage =
   "This analysis was temporary and is no longer available. Please upload the document again.";
 
-function formatPageList(pages?: number[] | null): string {
-  if (!pages?.length) {
-    return "No pages detected";
-  }
-
-  return pages.map((page) => `Page ${page}`).join(", ");
-}
-
 function WarningList({ warnings }: { warnings: string[] }) {
   return (
     <article className="rounded-3xl border border-amber-300/25 bg-amber-300/10 p-6 shadow-xl ring-1 ring-amber-200/10">
@@ -78,31 +70,68 @@ function WarningList({ warnings }: { warnings: string[] }) {
   );
 }
 
+const defaultVisiblePageCount = 10;
+
+type SourceSectionId = "income" | "balance" | "cashFlow";
+
+function formatPageCount(count: number): string {
+  return count === 1 ? "1 page reviewed" : `${count} pages reviewed`;
+}
+
 function SectionDetectionPages({
   detection,
 }: {
   detection?: SectionDetection | null;
 }) {
-  const pageGroups = [
+  const [expandedSections, setExpandedSections] = useState<
+    Partial<Record<SourceSectionId, boolean>>
+  >({});
+  const pageGroups: Array<{
+    id: SourceSectionId;
+    label: string;
+    description: string;
+    pages?: number[] | null;
+    marker: string;
+    markerClassName: string;
+  }> = [
     {
+      id: "income",
       label: "Income statement",
-      description: "Where revenue and profit details were found.",
+      description: "Revenue and profit details found.",
       pages: detection?.income_statement_pages,
+      marker: "IS",
+      markerClassName:
+        "border-emerald-300/30 bg-emerald-300/10 text-emerald-100 ring-emerald-300/20",
     },
     {
+      id: "balance",
       label: "Balance sheet",
-      description: "Where assets, liabilities, and equity details were found.",
+      description: "Assets, liabilities, and equity details found.",
       pages: detection?.balance_sheet_pages,
+      marker: "BS",
+      markerClassName:
+        "border-sky-300/30 bg-sky-300/10 text-sky-100 ring-sky-300/20",
     },
     {
+      id: "cashFlow",
       label: "Cash flow statement",
-      description: "Where cash movement details were found.",
+      description: "Operating, investing, and financing cash movement found.",
       pages: detection?.cash_flow_pages,
+      marker: "CF",
+      markerClassName:
+        "border-violet-300/30 bg-violet-300/10 text-violet-100 ring-violet-300/20",
     },
   ];
 
+  function toggleSection(sectionId: SourceSectionId) {
+    setExpandedSections((currentSections) => ({
+      ...currentSections,
+      [sectionId]: !currentSections[sectionId],
+    }));
+  }
+
   return (
-    <article className="rounded-3xl border border-slate-800 bg-slate-900/85 p-6 shadow-xl ring-1 ring-white/5">
+    <article className="min-w-0 rounded-3xl border border-slate-800 bg-slate-900/85 p-6 shadow-xl ring-1 ring-white/5">
       <p className="text-sm font-semibold uppercase tracking-[0.25em] text-sky-300">
         Section detection pages used
       </p>
@@ -114,24 +143,85 @@ function SectionDetectionPages({
         as a quick map back to the uploaded document.
       </p>
       <div className="mt-5 grid gap-4">
-        {pageGroups.map((group) => (
-          <section
-            key={group.label}
-            className="rounded-2xl border border-slate-700 bg-slate-950/60 p-4"
-          >
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h3 className="font-semibold text-white">{group.label}</h3>
-                <p className="mt-1 text-sm leading-6 text-slate-400">
-                  {group.description}
-                </p>
+        {pageGroups.map((group) => {
+          const pages = group.pages ?? [];
+          const isExpanded = Boolean(expandedSections[group.id]);
+          const hiddenPageCount = Math.max(
+            pages.length - defaultVisiblePageCount,
+            0,
+          );
+          const visiblePages = isExpanded
+            ? pages
+            : pages.slice(0, defaultVisiblePageCount);
+          const hasMorePages = hiddenPageCount > 0;
+
+          return (
+            <section
+              key={group.id}
+              className="min-w-0 rounded-2xl border border-slate-700 bg-slate-950/60 p-4 shadow-inner shadow-slate-950/30"
+            >
+              <div className="flex min-w-0 flex-col gap-4">
+                <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex min-w-0 gap-3">
+                    <span
+                      className={`mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border text-xs font-bold ring-1 ${group.markerClassName}`}
+                      aria-hidden="true"
+                    >
+                      {group.marker}
+                    </span>
+                    <div className="min-w-0">
+                      <h3 className="truncate font-semibold text-white">
+                        {group.label}
+                      </h3>
+                      <p className="mt-1 text-sm leading-6 text-slate-400">
+                        {group.description}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="inline-flex w-fit shrink-0 rounded-full bg-sky-400/10 px-3 py-1 text-sm font-semibold text-sky-100 ring-1 ring-sky-400/20">
+                    {formatPageCount(pages.length)}
+                  </span>
+                </div>
+
+                <div
+                  className="flex min-w-0 flex-wrap gap-2"
+                  aria-label={`${group.label} pages`}
+                >
+                  {visiblePages.length ? (
+                    visiblePages.map((page) => (
+                      <span
+                        key={`${group.id}-${page}`}
+                        className="max-w-full rounded-full border border-slate-700 bg-slate-900/90 px-3 py-1 text-xs font-semibold text-slate-200 shadow-sm ring-1 ring-white/5"
+                      >
+                        Page {page}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="rounded-full border border-slate-700 bg-slate-900/90 px-3 py-1 text-xs font-semibold text-slate-400 ring-1 ring-white/5">
+                      No pages detected
+                    </span>
+                  )}
+                  {!isExpanded && hasMorePages ? (
+                    <span className="rounded-full border border-sky-300/20 bg-sky-400/10 px-3 py-1 text-xs font-semibold text-sky-100 ring-1 ring-sky-300/20">
+                      + {hiddenPageCount} more pages
+                    </span>
+                  ) : null}
+                </div>
+
+                {hasMorePages ? (
+                  <button
+                    className="w-fit rounded-full border border-slate-700 px-3 py-1.5 text-xs font-semibold text-sky-100 transition hover:border-sky-300 hover:bg-sky-400/10 focus:outline-none focus:ring-2 focus:ring-sky-300/40"
+                    type="button"
+                    aria-expanded={isExpanded}
+                    onClick={() => toggleSection(group.id)}
+                  >
+                    {isExpanded ? "Show fewer" : "Show all pages"}
+                  </button>
+                ) : null}
               </div>
-              <span className="rounded-full bg-sky-400/10 px-3 py-1 text-sm font-semibold text-sky-100 ring-1 ring-sky-400/20">
-                {formatPageList(group.pages)}
-              </span>
-            </div>
-          </section>
-        ))}
+            </section>
+          );
+        })}
       </div>
     </article>
   );
