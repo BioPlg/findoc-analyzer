@@ -128,18 +128,18 @@ export function ManualReviewForm({
   }
 
   return (
-    <article className="rounded-3xl border border-sky-400/30 bg-slate-900/95 p-6 shadow-xl lg:p-8">
+    <article className="rounded-3xl border border-sky-400/30 bg-slate-900/95 p-6 shadow-xl ring-1 ring-white/5 lg:p-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.25em] text-sky-300">
             Manual review
           </p>
           <h2 className="mt-2 text-2xl font-semibold text-white">
-            Review/Edit Extracted Data
+            Review extracted data
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-            Edit the extracted statement values below, then save to recalculate
-            ratios and the dashboard rating for this session only.
+            Edit extracted statement values below, then save to recalculate
+            ratios and the dashboard rating for this browser session only.
           </p>
         </div>
         <div className="rounded-2xl border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm font-semibold text-amber-100">
@@ -148,7 +148,7 @@ export function ManualReviewForm({
       </div>
 
       {error ? (
-        <div className="mt-5 rounded-2xl border border-rose-400/25 bg-rose-400/10 p-4 text-sm leading-6 text-rose-100">
+        <div className="mt-5 rounded-2xl border border-amber-300/25 bg-amber-300/10 p-4 text-sm leading-6 text-amber-50">
           {error}
         </div>
       ) : null}
