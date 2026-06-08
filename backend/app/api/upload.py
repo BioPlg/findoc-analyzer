@@ -37,24 +37,26 @@ def _raise_non_pdf_error() -> None:
     raise InvalidPDFError("Only PDF files are accepted. Please upload a PDF file.")
 
 
-@router.post("/upload", response_model=TemporaryUploadResponse)
-async def upload_pdf(
-    request: Request,
-    file: Annotated[UploadFile, File(description="PDF file to store temporarily")],
-) -> TemporaryUploadResponse:
-    """Accept a PDF file, save it temporarily, and return its temporary ID."""
+async def save_temporary_pdf_upload(
+    *,
+    file: UploadFile,
+    upload_dir: Path,
+    max_upload_mb: int,
+    file_id: str | None = None,
+) -> Path:
+    """Validate and save an uploaded PDF to temporary local storage.
+
+    The caller owns deletion of the returned path. Validation includes filename,
+    content type metadata, PDF header bytes, and configured max upload size.
+    """
     if not _has_pdf_name_and_type(file):
         _raise_non_pdf_error()
 
-    settings = request.app.state.settings
-    max_bytes = settings.max_upload_mb * 1024 * 1024
-    upload_dir = settings.temp_upload_dir
     upload_dir.mkdir(parents=True, exist_ok=True)
-
-    file_id = uuid4().hex
-    temp_file_path = upload_dir / f"{file_id}.pdf"
+    max_bytes = max_upload_mb * 1024 * 1024
+    temporary_file_id = file_id or uuid4().hex
+    temp_file_path = upload_dir / f"{temporary_file_id}.pdf"
     bytes_written = 0
-
     first_chunk = True
 
     try:
@@ -68,7 +70,7 @@ async def upload_pdf(
                 bytes_written += len(chunk)
                 if bytes_written > max_bytes:
                     raise UploadTooLargeError(
-                        f"Uploaded file exceeds the {settings.max_upload_mb} MB size limit.",
+                        f"Uploaded file exceeds the {max_upload_mb} MB size limit.",
                     )
                 output_file.write(chunk)
 
@@ -83,6 +85,25 @@ async def upload_pdf(
         raise AppError("Unable to save uploaded file temporarily.") from exc
     finally:
         await file.close()
+
+    return temp_file_path
+
+
+@router.post("/upload", response_model=TemporaryUploadResponse)
+async def upload_pdf(
+    request: Request,
+    file: Annotated[UploadFile, File(description="PDF file to store temporarily")],
+) -> TemporaryUploadResponse:
+    """Accept a PDF file, save it temporarily, and return its temporary ID."""
+    settings = request.app.state.settings
+
+    file_id = uuid4().hex
+    await save_temporary_pdf_upload(
+        file=file,
+        upload_dir=settings.temp_upload_dir,
+        max_upload_mb=settings.max_upload_mb,
+        file_id=file_id,
+    )
 
     return TemporaryUploadResponse(
         file_id=file_id,

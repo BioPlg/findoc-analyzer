@@ -13,6 +13,7 @@ from app.config import get_settings
 from app.errors import (
     GeminiAPIFailureError,
     GeminiAPIKeyMissingError,
+    GeminiHighDemandError as PublicGeminiHighDemandError,
     GeminiRateLimitError as PublicGeminiRateLimitError,
     InvalidGeminiJSONError as PublicInvalidGeminiJSONError,
 )
@@ -63,6 +64,14 @@ class GeminiResponseValidationError(PublicInvalidGeminiJSONError, GeminiExtracti
 
 class GeminiRateLimitError(PublicGeminiRateLimitError, GeminiExtractionError):
     """Raised when Gemini is rate-limited or temporarily unavailable."""
+
+    def __init__(self, internal_message: str | None = None) -> None:
+        super().__init__()
+        self.internal_message = internal_message
+
+
+class GeminiHighDemandError(PublicGeminiHighDemandError, GeminiExtractionError):
+    """Raised when Gemini returns a high-demand 503 response."""
 
     def __init__(self, internal_message: str | None = None) -> None:
         super().__init__()
@@ -217,6 +226,11 @@ def extract_financial_data_with_gemini(relevant_text: str) -> ExtractedFinancial
             raise
 
         if _is_retryable_gemini_error(exc, errors_module):
+            if _api_error_status_code(exc) == 503:
+                raise GeminiHighDemandError(
+                    "Gemini returned 503 due to temporary high demand."
+                ) from exc
+
             raise GeminiRateLimitError(
                 "Gemini was rate-limited or temporarily unavailable."
             ) from exc

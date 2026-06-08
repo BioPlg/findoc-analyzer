@@ -2,9 +2,9 @@
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, File, Request, UploadFile
 
 from app.core.rating_engine import calculate_rating
 from app.core.ratio_engine import calculate_ratios
@@ -22,6 +22,7 @@ from app.errors import (
     PDFExtractionFailedError,
     TemporaryFileCleanupFailedError,
 )
+from app.api.upload import save_temporary_pdf_upload
 from app.services import gemini_service
 from app.services.pdf_service import PDFExtractionError, extract_text_from_pdf
 from app.services.section_locator_service import (
@@ -91,6 +92,42 @@ def _app_error_for_gemini_exception(exc: Exception) -> AppError:
     if isinstance(exc, AppError):
         return exc
     return AnalysisFailedError()
+
+
+def _analyze_pdf_path(pdf_path: Path, *, log_context: str) -> FullAnalysisResponse:
+    """Run the transient single-Gemini-request analysis pipeline for one PDF path."""
+    try:
+        extracted_pdf = extract_text_from_pdf(str(pdf_path))
+        located_sections = locate_financial_statement_sections_from_extracted_text(
+            extracted_pdf
+        )
+    except PDFExtractionError as exc:
+        logger.warning("PDF extraction failed for %s", log_context)
+        raise PDFExtractionFailedError() from exc
+
+    relevant_text = str(located_sections.get("combined_relevant_text") or "").strip()
+    if not relevant_text:
+        raise FinancialSectionsNotFoundError()
+
+    try:
+        financial_data = gemini_service.extract_financial_data_with_gemini(relevant_text)
+    except Exception as exc:
+        app_error = _app_error_for_gemini_exception(exc)
+        logger.exception("Gemini extraction failed for %s", log_context)
+        raise app_error from exc
+
+    financial_data = _normalize_optional_lists(financial_data)
+    ratios = calculate_ratios(financial_data)
+    rating = calculate_rating(financial_data, ratios)
+
+    return FullAnalysisResponse(
+        extracted_financial_data=financial_data,
+        ratios=ratios,
+        rating=rating,
+        section_detection=_public_section_detection(located_sections),
+        disclaimer=DISCLAIMER,
+        privacy_note=PRIVACY_NOTE,
+    )
 
 
 @router.post("/rate-manual", response_model=FullAnalysisResponse)
@@ -191,6 +228,42 @@ def analyze_extraction(file_id: str, request: Request) -> ExtractedFinancialData
         raise app_error from exc
 
 
+@router.post("/analyze-upload", response_model=FullAnalysisResponse)
+async def analyze_uploaded_pdf_directly(
+    request: Request,
+    file: Annotated[UploadFile, File(description="PDF file to analyze transiently")],
+) -> FullAnalysisResponse:
+    """Upload and analyze one PDF within a single backend request.
+
+    This production-safe Cloud Run endpoint avoids cross-request temporary file
+    dependencies: the PDF is validated, saved to TEMP_UPLOAD_DIR only for this
+    request, analyzed with exactly one Gemini extraction call, and deleted in a
+    ``finally`` block whether analysis succeeds or fails.
+    """
+    pdf_path: Path | None = None
+
+    try:
+        settings = request.app.state.settings
+        pdf_path = await save_temporary_pdf_upload(
+            file=file,
+            upload_dir=settings.temp_upload_dir,
+            max_upload_mb=settings.max_upload_mb,
+        )
+        return _analyze_pdf_path(pdf_path, log_context="direct analyze-upload request")
+    except AppError:
+        raise
+    except Exception as exc:
+        logger.exception("Analysis failed for direct analyze-upload request")
+        raise AnalysisFailedError() from exc
+    finally:
+        if pdf_path is not None:
+            try:
+                pdf_path.unlink(missing_ok=True)
+            except OSError:
+                cleanup_error = TemporaryFileCleanupFailedError()
+                logger.exception("%s for direct analyze-upload request", cleanup_error.message)
+
+
 @router.post("/analyze/{file_id}", response_model=FullAnalysisResponse)
 def analyze_pdf(file_id: str, request: Request) -> FullAnalysisResponse:
     """Run the synchronous MVP financial analysis pipeline for an uploaded PDF.
@@ -209,40 +282,7 @@ def analyze_pdf(file_id: str, request: Request) -> FullAnalysisResponse:
         if not pdf_path.is_file():
             _raise_missing_pdf_error()
 
-        try:
-            extracted_pdf = extract_text_from_pdf(str(pdf_path))
-            located_sections = locate_financial_statement_sections_from_extracted_text(
-                extracted_pdf
-            )
-        except PDFExtractionError as exc:
-            logger.warning("PDF extraction failed for temporary file_id=%s", file_id)
-            raise PDFExtractionFailedError() from exc
-
-        relevant_text = str(located_sections.get("combined_relevant_text") or "").strip()
-        if not relevant_text:
-            raise FinancialSectionsNotFoundError()
-
-        try:
-            financial_data = gemini_service.extract_financial_data_with_gemini(
-                relevant_text
-            )
-        except Exception as exc:
-            app_error = _app_error_for_gemini_exception(exc)
-            logger.exception("Gemini extraction failed for temporary file_id=%s", file_id)
-            raise app_error from exc
-
-        financial_data = _normalize_optional_lists(financial_data)
-        ratios = calculate_ratios(financial_data)
-        rating = calculate_rating(financial_data, ratios)
-
-        return FullAnalysisResponse(
-            extracted_financial_data=financial_data,
-            ratios=ratios,
-            rating=rating,
-            section_detection=_public_section_detection(located_sections),
-            disclaimer=DISCLAIMER,
-            privacy_note=PRIVACY_NOTE,
-        )
+        return _analyze_pdf_path(pdf_path, log_context=f"temporary file_id={file_id}")
     except AppError:
         raise
     except Exception as exc:

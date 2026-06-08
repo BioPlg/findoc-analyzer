@@ -1,10 +1,6 @@
 import { ChangeEvent, DragEvent, useRef, useState } from "react";
-import {
-  analyzeUploadedDocument,
-  ApiRequestError,
-  uploadFinancialDocument,
-} from "../services/api";
-import type { AnalysisResult, TemporaryUploadResponse } from "../types/analysis";
+import { analyzeFinancialDocumentUpload, ApiRequestError } from "../services/api";
+import type { AnalysisResult } from "../types/analysis";
 import type { AppRoute } from "../utils/router";
 import { routes } from "../utils/router";
 
@@ -13,9 +9,9 @@ interface UploadPageProps {
   onNavigate: (route: AppRoute) => void;
 }
 
-type UploadStep = "idle" | "uploading" | "uploaded" | "analyzing";
+type UploadStep = "idle" | "analyzing";
 
-type ErrorContext = "upload" | "analysis";
+type ErrorContext = "analysis";
 
 interface DisplayError {
   message: string;
@@ -40,6 +36,8 @@ function isGeminiRateLimit(error: unknown): boolean {
   const detail = `${error.message} ${error.detail ?? ""}`.toLowerCase();
   return (
     error.status === 429 ||
+    error.status === 503 ||
+    detail.includes("high demand") ||
     detail.includes("rate limit") ||
     detail.includes("quota") ||
     detail.includes("resource_exhausted") ||
@@ -55,15 +53,15 @@ function getFriendlyErrorMessage(error: unknown, context: ErrorContext): string 
   }
 
   if (isGeminiRateLimit(error)) {
+    if (error instanceof ApiRequestError && error.status === 503 && error.message) {
+      return error.message;
+    }
+
     return "The AI service is temporarily busy or the free daily limit may have been reached. Please try again later.";
   }
 
-  if (context === "upload") {
-    if (error instanceof ApiRequestError && error.status === 400) {
-      return "Invalid file. Please select a valid PDF document.";
-    }
-
-    return "Upload failed. Please try uploading the PDF again.";
+  if (error instanceof ApiRequestError && error.status === 400) {
+    return "Invalid file. Please select a valid PDF document.";
   }
 
   return "Analysis failed. Please try again, or upload a different PDF if the issue continues.";
@@ -71,18 +69,15 @@ function getFriendlyErrorMessage(error: unknown, context: ErrorContext): string 
 
 export function UploadPage({ onAnalysisComplete, onNavigate }: UploadPageProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploadResponse, setUploadResponse] = useState<TemporaryUploadResponse | null>(null);
   const [step, setStep] = useState<UploadStep>("idle");
   const [error, setError] = useState<DisplayError | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const canUpload = selectedFile !== null && step !== "uploading" && step !== "analyzing";
-  const canAnalyze = uploadResponse !== null && step !== "analyzing";
+  const canAnalyze = selectedFile !== null && step !== "analyzing";
 
   function resetUploadForNewFile(file: File | null) {
     setSelectedFile(file);
-    setUploadResponse(null);
     setStep("idle");
   }
 
@@ -128,32 +123,9 @@ export function UploadPage({ onAnalysisComplete, onNavigate }: UploadPageProps) 
     selectFile(event.dataTransfer.files?.[0] ?? null);
   }
 
-  async function handleUpload() {
+  async function handleAnalyze() {
     if (!selectedFile) {
       setError({ message: "Invalid file. Please select a PDF document." });
-      return;
-    }
-
-    setStep("uploading");
-    setError(null);
-
-    try {
-      const response = await uploadFinancialDocument(selectedFile);
-      setUploadResponse(response);
-      setStep("uploaded");
-    } catch (caughtError) {
-      setUploadResponse(null);
-      setStep("idle");
-      setError({
-        message: getFriendlyErrorMessage(caughtError, "upload"),
-        retryAction: selectedFile ? "upload" : undefined,
-      });
-    }
-  }
-
-  async function handleAnalyze() {
-    if (!uploadResponse) {
-      setError({ message: "Upload a PDF before starting analysis." });
       return;
     }
 
@@ -161,48 +133,11 @@ export function UploadPage({ onAnalysisComplete, onNavigate }: UploadPageProps) 
     setError(null);
 
     try {
-      const result = await analyzeUploadedDocument(uploadResponse.file_id);
-      onAnalysisComplete(result);
-      onNavigate(routes.dashboard);
-    } catch (caughtError) {
-      setUploadResponse(null);
-      setStep("idle");
-      const friendlyMessage = getFriendlyErrorMessage(caughtError, "analysis");
-      setError({
-        message: `${friendlyMessage} The temporary upload has been cleared, so please upload the PDF again before analyzing.`,
-        retryAction: selectedFile ? "analysis" : undefined,
-      });
-    }
-  }
-
-  async function handleRetry() {
-    if (!error?.retryAction) {
-      return;
-    }
-
-    if (error.retryAction === "upload") {
-      await handleUpload();
-      return;
-    }
-
-    if (!selectedFile) {
-      setError({ message: "Please select the PDF again before retrying analysis." });
-      return;
-    }
-
-    setStep("uploading");
-    setError(null);
-
-    try {
-      const response = await uploadFinancialDocument(selectedFile);
-      setUploadResponse(response);
-      setStep("analyzing");
-      const result = await analyzeUploadedDocument(response.file_id);
+      const result = await analyzeFinancialDocumentUpload(selectedFile);
       onAnalysisComplete(result);
       onNavigate(routes.dashboard);
     } catch (caughtError) {
       setStep("idle");
-      setUploadResponse(null);
       setError({
         message: getFriendlyErrorMessage(caughtError, "analysis"),
         retryAction: selectedFile ? "analysis" : undefined,
@@ -210,7 +145,16 @@ export function UploadPage({ onAnalysisComplete, onNavigate }: UploadPageProps) 
     }
   }
 
-  const isBusy = step === "uploading" || step === "analyzing";
+  async function handleRetry() {
+    if (!error?.retryAction || !selectedFile) {
+      setError({ message: "Please select the PDF again before retrying analysis." });
+      return;
+    }
+
+    await handleAnalyze();
+  }
+
+  const isBusy = step === "analyzing";
 
   return (
     <section className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
@@ -222,8 +166,8 @@ export function UploadPage({ onAnalysisComplete, onNavigate }: UploadPageProps) 
           Upload one PDF financial report.
         </h1>
         <p className="mt-4 text-base leading-7 text-slate-300">
-          We will upload it temporarily, ask Gemini to find the key financial
-          numbers, then use Python to calculate ratios for the dashboard.
+          We will process it in one temporary backend request, ask Gemini to find the key financial
+          numbers once, then use Python to calculate ratios for the dashboard.
         </p>
 
         <div className="mt-6 rounded-3xl border border-sky-400/20 bg-sky-400/10 p-5 text-sm leading-6 text-sky-50">
@@ -233,8 +177,8 @@ export function UploadPage({ onAnalysisComplete, onNavigate }: UploadPageProps) 
 
         <ol className="mt-6 space-y-3 text-sm leading-6 text-slate-300">
           {[
-            "Upload the PDF from your device.",
-            "Start analysis when the upload completes.",
+            "Choose the PDF from your device.",
+            "Click Analyze to upload and process it in one secure request.",
             "Review the rating, charts, and gentle review notes on the dashboard.",
           ].map((item, index) => (
             <li key={item} className="flex gap-3 rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
@@ -251,7 +195,7 @@ export function UploadPage({ onAnalysisComplete, onNavigate }: UploadPageProps) 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.25em] text-sky-300">
-              Secure upload flow
+              Secure analysis flow
             </p>
             <h2 className="mt-2 text-2xl font-bold text-white">Choose your PDF</h2>
           </div>
@@ -301,17 +245,11 @@ export function UploadPage({ onAnalysisComplete, onNavigate }: UploadPageProps) 
             </div>
           ) : null}
 
-          {uploadResponse ? (
-            <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 p-4 text-sm leading-6 text-emerald-100">
-              <span className="font-semibold text-white">Upload complete:</span> {uploadResponse.filename}
-            </div>
-          ) : null}
-
           {isBusy ? (
             <div className="rounded-2xl border border-sky-400/25 bg-slate-950/70 p-4" role="status">
               <div className="flex items-center gap-3 text-sm font-semibold text-sky-100">
                 <span className="h-3 w-3 animate-pulse rounded-full bg-sky-300" />
-                {step === "uploading" ? "Uploading your PDF…" : "Analyzing your PDF…"}
+                Uploading and analyzing your PDF…
               </div>
               <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-800">
                 <div className="h-full w-2/3 animate-pulse rounded-full bg-gradient-to-r from-sky-300 to-blue-400" />
@@ -332,7 +270,7 @@ export function UploadPage({ onAnalysisComplete, onNavigate }: UploadPageProps) 
               {error.retryAction ? (
                 <button
                   className="mt-4 rounded-full bg-amber-100 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
-                  disabled={step === "uploading" || step === "analyzing"}
+                  disabled={step === "analyzing"}
                   type="button"
                   onClick={handleRetry}
                 >
@@ -342,31 +280,14 @@ export function UploadPage({ onAnalysisComplete, onNavigate }: UploadPageProps) 
             </div>
           ) : null}
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <button
-              className="rounded-full bg-sky-400 px-6 py-3 font-semibold text-slate-950 shadow-lg shadow-sky-950/20 transition hover:bg-sky-300 disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={!canUpload}
-              type="button"
-              onClick={handleUpload}
-            >
-              {step === "uploading" ? "Uploading…" : "Upload PDF"}
-            </button>
-
-            {uploadResponse ? (
-              <button
-                className="rounded-full bg-blue-400 px-6 py-3 font-semibold text-slate-950 shadow-lg shadow-blue-950/20 transition hover:bg-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={!canAnalyze}
-                type="button"
-                onClick={handleAnalyze}
-              >
-                {step === "analyzing" ? "Analyzing…" : "Analyze Document"}
-              </button>
-            ) : (
-              <div className="rounded-full border border-slate-800 bg-slate-950/50 px-6 py-3 text-center text-sm font-semibold text-slate-500">
-                Analyze after upload
-              </div>
-            )}
-          </div>
+          <button
+            className="w-full rounded-full bg-sky-400 px-6 py-3 font-semibold text-slate-950 shadow-lg shadow-sky-950/20 transition hover:bg-sky-300 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={!canAnalyze}
+            type="button"
+            onClick={handleAnalyze}
+          >
+            {step === "analyzing" ? "Analyzing…" : "Analyze Document"}
+          </button>
         </div>
       </div>
     </section>
