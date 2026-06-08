@@ -80,7 +80,29 @@ cp .env.example .env
 uvicorn app.main:app --reload
 ```
 
-Set `GEMINI_API_KEY` in `backend/.env` before implementing Gemini-backed extraction.
+The API will be available at `http://127.0.0.1:8000`. Confirm the backend is running with:
+
+```bash
+curl http://127.0.0.1:8000/health
+```
+
+Expected response:
+
+```json
+{
+  "status": "ok",
+  "service": "FinDoc Analyzer API"
+}
+```
+
+Backend configuration is loaded from environment variables or `backend/.env`:
+
+- `GEMINI_API_KEY`: optional for now; required only when Gemini-backed extraction is implemented.
+- `GEMINI_EXTRACTION_MODEL`: defaults to `gemini-2.5-flash`.
+- `TEMP_UPLOAD_DIR`: defaults to `backend/uploads/tmp`.
+- `MAX_UPLOAD_MB`: defaults to `25`.
+
+Do not call Gemini, add a database, add authentication, or build uploads in the current backend milestone.
 
 ## Frontend setup
 
