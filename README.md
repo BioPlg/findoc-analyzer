@@ -6,7 +6,7 @@ Users will eventually upload PDFs such as 10-Ks, 10-Qs, annual reports, or conso
 
 ## MVP scope
 
-This repository currently contains the initial project structure only. The upload workflow, PDF parsing, Gemini extraction, ratio calculations, rating logic, and dashboard visualizations will be implemented in later milestones.
+This repository currently contains the initial project structure and a temporary PDF upload endpoint. PDF parsing, Gemini extraction, ratio calculations, rating logic, and dashboard visualizations will be implemented in later milestones.
 
 ## Tech stack
 
@@ -95,6 +95,39 @@ Expected response:
 }
 ```
 
+
+### Temporary PDF upload test
+
+The backend exposes `POST /api/upload` for temporary PDF uploads only. The endpoint stores accepted files in `backend/uploads/tmp/`, returns a generated `file_id`, and never returns the server-side file path.
+
+Create a tiny local PDF-like test file and upload it with `curl`:
+
+```bash
+printf '%s\n' '%PDF-1.4' '%%EOF' > /tmp/findoc-test.pdf
+curl -X POST http://127.0.0.1:8000/api/upload \
+  -F "file=@/tmp/findoc-test.pdf;type=application/pdf"
+```
+
+Expected response shape:
+
+```json
+{
+  "file_id": "generated-temporary-id",
+  "filename": "findoc-test.pdf",
+  "message": "File uploaded temporarily"
+}
+```
+
+Non-PDF files are rejected with a `400` error:
+
+```bash
+printf 'not a pdf\n' > /tmp/findoc-test.txt
+curl -i -X POST http://127.0.0.1:8000/api/upload \
+  -F "file=@/tmp/findoc-test.txt;type=text/plain"
+```
+
+`MAX_UPLOAD_MB` controls the upload size limit. Temporary files older than 1 hour are deleted on backend startup.
+
 Backend configuration is loaded from environment variables or `backend/.env`:
 
 - `GEMINI_API_KEY`: optional for now; required only when Gemini-backed extraction is implemented.
@@ -102,7 +135,7 @@ Backend configuration is loaded from environment variables or `backend/.env`:
 - `TEMP_UPLOAD_DIR`: defaults to `backend/uploads/tmp`.
 - `MAX_UPLOAD_MB`: defaults to `25`.
 
-Do not call Gemini, add a database, add authentication, or build uploads in the current backend milestone.
+Do not call Gemini, add a database, or add authentication in the current backend milestone. Uploaded files are saved temporarily only and are not parsed yet.
 
 ## Frontend setup
 
@@ -116,7 +149,7 @@ The frontend `.env.example` intentionally does not include any Gemini secrets. G
 
 ## Current status
 
-- Initial backend folders and FastAPI health check placeholder are present.
+- Initial backend folders, FastAPI health check, and temporary PDF upload endpoint are present.
 - Initial frontend Vite/React/TypeScript/Tailwind scaffold is present.
 - Environment examples and ignore rules are present.
 - No full application features have been implemented yet.
