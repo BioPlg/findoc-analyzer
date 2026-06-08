@@ -19,10 +19,11 @@ ENV_FILE = REPO_ROOT / "backend" / ".env"
 class Settings(BaseSettings):
     """Runtime settings loaded from environment variables."""
 
-    gemini_api_key: str = Field(default="", description="Gemini API key for future extraction support.")
+    gemini_api_key: str = Field(default="", description="Backend-only Gemini API key.")
     gemini_extraction_model: str = "gemini-2.5-flash"
-    temp_upload_dir: Path = Path("backend/uploads/tmp")
-    max_upload_mb: PositiveInt = 25
+    temp_upload_dir: Path = Path("/tmp/findoc-uploads")
+    max_upload_mb: PositiveInt = 10
+    frontend_origin: str = ""
 
     @field_validator("temp_upload_dir", mode="after")
     @classmethod
@@ -31,6 +32,12 @@ class Settings(BaseSettings):
         if upload_dir.is_absolute():
             return upload_dir
         return REPO_ROOT / upload_dir
+
+    @field_validator("frontend_origin", mode="after")
+    @classmethod
+    def normalize_frontend_origin(cls, frontend_origin: str) -> str:
+        """Normalize the deployed frontend origin for CORS matching."""
+        return frontend_origin.strip().rstrip("/")
 
     model_config = SettingsConfigDict(env_file=ENV_FILE, extra="ignore")
 

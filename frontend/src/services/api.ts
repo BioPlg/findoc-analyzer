@@ -4,8 +4,11 @@ import type {
   TemporaryUploadResponse,
 } from "../types/analysis";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ?? "http://localhost:8000";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "");
+
+if (!API_BASE_URL) {
+  throw new Error("VITE_API_BASE_URL must be set for frontend API requests.");
+}
 
 export class ApiRequestError extends Error {
   readonly status?: number;

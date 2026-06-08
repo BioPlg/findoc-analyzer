@@ -105,7 +105,7 @@ The default extraction model is `gemini-2.5-flash`. Gemini is called from the Fa
 - The backend can validate, normalize, and handle errors before returning data to the frontend.
 - The backend can keep a strict separation between AI extraction and deterministic Python calculations.
 
-The frontend communicates only with the local API base URL, typically `http://localhost:8000`, and does not call Gemini directly.
+The frontend communicates only with the FastAPI backend through `VITE_API_BASE_URL`, typically `http://localhost:8000` locally or the Cloud Run service URL in production, and does not call Gemini directly.
 
 ## One Gemini call and `ai_extraction_summary`
 
@@ -179,6 +179,8 @@ findoc-analyzer/
     index.html
     package.json
     vite.config.ts
+  firebase.json                 # Firebase Hosting config for frontend/dist
+  .firebaserc                   # Placeholder Firebase project mapping
   docker-compose.yml
   README.md
 ```
@@ -283,11 +285,137 @@ docker compose down --volumes
 
 Notes for Docker development:
 
-- The backend container runs `uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload`.
+- The backend Cloud Run image runs `uvicorn app.main:app --host 0.0.0.0 --port ${PORT}`; Docker Compose sets `PORT=8000` for local development.
 - The frontend container runs the Vite development server with `--host 0.0.0.0`.
 - `TEMP_UPLOAD_DIR` is set to `/tmp/findoc-uploads` in Docker and mounted as `tmpfs`, so uploads are temporary container memory files and are removed when the container stops.
 - No database container is included, matching the MVP design.
 - The frontend uses `VITE_API_BASE_URL=http://localhost:8000` so browser requests reach the backend through the published host port.
+
+
+## Google deployment: Firebase Hosting + Cloud Run
+
+This app is prepared for a Google-only deployment with Firebase Hosting serving the React static frontend and Google Cloud Run serving the FastAPI backend. The deployment keeps the MVP constraints: no database, no persistent uploaded-file storage, backend-only Gemini access, one Gemini extraction request per analyzed document, and PDF cleanup after the `/api/analyze/{file_id}` request succeeds or fails.
+
+### 1. Create a Google Cloud and Firebase project
+
+1. Create or select a Google Cloud project.
+2. Enable billing if Cloud Run requires it for your account/project.
+3. Enable the Cloud Run and Artifact Registry APIs.
+4. Create or link a Firebase project for the same Google Cloud project.
+5. Install and authenticate the CLIs if needed:
+
+   ```bash
+   gcloud auth login
+   firebase login
+   ```
+
+6. Set your project IDs locally:
+
+   ```bash
+   gcloud config set project YOUR_PROJECT_ID
+   firebase use --add
+   ```
+
+Update `.firebaserc` by replacing `replace-with-your-firebase-project-id` with your Firebase project ID, or select the project with `firebase use --add`.
+
+### 2. Deploy the backend to Cloud Run
+
+From the repository root, build and deploy the backend container from `backend/Dockerfile`:
+
+```bash
+gcloud run deploy findoc-analyzer-api \
+  --source backend \
+  --region us-central1 \
+  --allow-unauthenticated
+```
+
+Cloud Run supplies the `PORT` environment variable. The container starts the backend with:
+
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port ${PORT}
+```
+
+Copy the deployed Cloud Run service URL from the command output, for example `https://findoc-analyzer-api-xxxxx-uc.a.run.app`.
+
+### 3. Add Cloud Run environment variables
+
+Set secrets and runtime configuration on the Cloud Run service, not in frontend files and not in Firebase Hosting config:
+
+```bash
+gcloud run services update findoc-analyzer-api \
+  --region us-central1 \
+  --set-env-vars GEMINI_API_KEY=YOUR_GEMINI_API_KEY,GEMINI_EXTRACTION_MODEL=gemini-2.5-flash,TEMP_UPLOAD_DIR=/tmp/findoc-uploads,MAX_UPLOAD_MB=10,FRONTEND_ORIGIN=https://YOUR_FIREBASE_SITE.web.app
+```
+
+Use the exact Firebase Hosting origin you will deploy to for `FRONTEND_ORIGIN`. You can update it after the Firebase Hosting URL is confirmed. Do not put `GEMINI_API_KEY` in `frontend/.env`, `frontend/.env.example`, `firebase.json`, `.firebaserc`, or any committed file.
+
+### 4. Deploy the frontend to Firebase Hosting
+
+Create a frontend production environment file with the Cloud Run URL:
+
+```bash
+cat > frontend/.env.production <<'EOF'
+VITE_API_BASE_URL=https://YOUR_CLOUD_RUN_SERVICE_URL
+EOF
+```
+
+Build the frontend. Vite writes the production app to `frontend/dist`:
+
+```bash
+cd frontend
+npm install
+npm run build
+cd ..
+```
+
+Deploy Firebase Hosting from the repository root:
+
+```bash
+firebase deploy --only hosting
+```
+
+The committed `firebase.json` serves `frontend/dist` and rewrites all routes to `/index.html` so direct visits to `/upload` and `/dashboard` work as a single-page app.
+
+### 5. Set `VITE_API_BASE_URL` to the Cloud Run URL
+
+For deployed frontend builds, `frontend/.env.production` must contain only the backend API base URL:
+
+```env
+VITE_API_BASE_URL=https://YOUR_CLOUD_RUN_SERVICE_URL
+```
+
+This value is safe for the frontend because it is only the public backend origin. It must not contain Gemini credentials.
+
+### 6. Set `FRONTEND_ORIGIN` to the Firebase Hosting URL
+
+After Firebase Hosting deploys, update Cloud Run CORS with the final Firebase Hosting origin:
+
+```bash
+gcloud run services update findoc-analyzer-api \
+  --region us-central1 \
+  --set-env-vars FRONTEND_ORIGIN=https://YOUR_FIREBASE_SITE.web.app
+```
+
+If you also use a custom Firebase Hosting domain, set `FRONTEND_ORIGIN` to that exact `https://` origin and redeploy/update Cloud Run. Local development origins `http://localhost:5173` and `http://127.0.0.1:5173` remain allowed by the backend.
+
+### 7. Test health and upload/analyze flow
+
+Verify the backend health endpoint:
+
+```bash
+curl https://YOUR_CLOUD_RUN_SERVICE_URL/health
+```
+
+Expected response:
+
+```json
+{
+  "status": "ok",
+  "service": "FinDoc Analyzer API"
+}
+```
+
+Then open the Firebase Hosting URL, upload a small PDF financial document, and run the analysis flow. The main `/api/analyze/{file_id}` endpoint deletes the temporary uploaded PDF in a `finally` block after success or failure.
 
 ## Environment variables
 
@@ -298,16 +426,18 @@ Copy from `backend/.env.example`:
 ```env
 GEMINI_API_KEY=your_gemini_api_key_here
 GEMINI_EXTRACTION_MODEL=gemini-2.5-flash
-TEMP_UPLOAD_DIR=backend/uploads/tmp
-MAX_UPLOAD_MB=25
+TEMP_UPLOAD_DIR=/tmp/findoc-uploads
+MAX_UPLOAD_MB=10
+FRONTEND_ORIGIN=http://localhost:5173
 ```
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `GEMINI_API_KEY` | Required for Gemini-backed extraction | Secret API key used by the backend only. |
 | `GEMINI_EXTRACTION_MODEL` | Optional | Gemini model used for extraction. Defaults to `gemini-2.5-flash`. |
-| `TEMP_UPLOAD_DIR` | Optional | Directory for temporary PDF uploads. Defaults to `backend/uploads/tmp`. |
-| `MAX_UPLOAD_MB` | Optional | Maximum accepted upload size in megabytes. Defaults to `25`. |
+| `TEMP_UPLOAD_DIR` | Optional | Directory for temporary PDF uploads. Defaults to `/tmp/findoc-uploads`. |
+| `MAX_UPLOAD_MB` | Optional | Maximum accepted upload size in megabytes. Defaults to `10`. |
+| `FRONTEND_ORIGIN` | Required for deployed Firebase frontend CORS | Firebase Hosting origin allowed to call the Cloud Run backend. Local development origins are always allowed. |
 
 ### Frontend: `frontend/.env`
 
