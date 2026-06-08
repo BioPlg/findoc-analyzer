@@ -6,7 +6,7 @@ Users will eventually upload PDFs such as 10-Ks, 10-Qs, annual reports, or conso
 
 ## MVP scope
 
-This repository currently contains the initial project structure and a temporary PDF upload endpoint. PDF parsing, Gemini extraction, ratio calculations, rating logic, and dashboard visualizations will be implemented in later milestones.
+This repository currently contains the initial project structure, a temporary PDF upload endpoint, and a development-only PDF text extraction endpoint. Gemini extraction, ratio calculations, rating logic, and dashboard visualizations will be implemented in later milestones.
 
 ## Tech stack
 
@@ -135,7 +135,41 @@ Backend configuration is loaded from environment variables or `backend/.env`:
 - `TEMP_UPLOAD_DIR`: defaults to `backend/uploads/tmp`.
 - `MAX_UPLOAD_MB`: defaults to `25`.
 
-Do not call Gemini, add a database, or add authentication in the current backend milestone. Uploaded files are saved temporarily only and are not parsed yet.
+### Development PDF text extraction test
+
+The backend exposes `POST /api/extract-text/{file_id}` for development testing after a file has been uploaded with `POST /api/upload`. It reads the matching temporary PDF from `backend/uploads/tmp/`, extracts text page by page with `pdfplumber`, and intentionally does **not** delete the PDF yet.
+
+Example flow:
+
+```bash
+FILE_ID=$(curl -s -X POST http://127.0.0.1:8000/api/upload \
+  -F "file=@/path/to/document.pdf;type=application/pdf" | python -c 'import json,sys; print(json.load(sys.stdin)["file_id"])')
+
+curl -X POST "http://127.0.0.1:8000/api/extract-text/${FILE_ID}"
+```
+
+Expected response shape:
+
+```json
+{
+  "page_count": 2,
+  "pages": [
+    {
+      "page_number": 1,
+      "text": "Extracted page text..."
+    },
+    {
+      "page_number": 2,
+      "text": ""
+    }
+  ],
+  "full_text": "Extracted page text...\n\n"
+}
+```
+
+Empty pages are returned with an empty `text` string. Missing temporary files return `404`, while unreadable or corrupted PDFs return `422` with a clear extraction error.
+
+Do not call Gemini, add a database, identify financial sections, or add authentication in the current backend milestone. Uploaded files are saved temporarily only; the development extraction endpoint does not delete files yet.
 
 ## Frontend setup
 
