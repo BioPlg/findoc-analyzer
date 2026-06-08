@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Request
 
 from app.core.rating_engine import calculate_rating
 from app.core.ratio_engine import calculate_ratios
@@ -12,6 +12,15 @@ from app.schemas.financials import (
     ExtractedFinancialData,
     FullAnalysisResponse,
     SectionDetection,
+)
+from app.errors import (
+    AnalysisFailedError,
+    AppError,
+    FileNotFoundAppError,
+    FinancialSectionsNotFoundError,
+    InvalidPDFError,
+    PDFExtractionFailedError,
+    TemporaryFileCleanupFailedError,
 )
 from app.services import gemini_service
 from app.services.pdf_service import PDFExtractionError, extract_text_from_pdf
@@ -34,19 +43,13 @@ PRIVACY_NOTE = (
 def _pdf_path_for_file_id(upload_dir: Path, file_id: str) -> Path:
     """Return the temporary PDF path for a safe upload file ID."""
     if not file_id or not file_id.isalnum():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid file_id. Use the file_id returned by /api/upload.",
-        )
+        raise InvalidPDFError("Invalid file_id. Use the file_id returned by /api/upload.")
     return upload_dir / f"{file_id}.pdf"
 
 
 def _raise_missing_pdf_error() -> None:
     """Raise the standard missing temporary PDF error."""
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="Temporary PDF not found for the provided file_id.",
-    )
+    raise FileNotFoundAppError()
 
 
 def _public_section_detection(located_sections: dict[str, Any]) -> SectionDetection:
@@ -83,32 +86,11 @@ def _manual_section_detection() -> SectionDetection:
     )
 
 
-def _http_error_for_gemini_exception(exc: Exception) -> HTTPException:
+def _app_error_for_gemini_exception(exc: Exception) -> AppError:
     """Map Gemini service errors to clear public API errors."""
-    if isinstance(exc, gemini_service.GeminiConfigurationError):
-        return HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(exc),
-        )
-    if isinstance(exc, gemini_service.GeminiInvalidJSONError):
-        return HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=str(exc),
-        )
-    if isinstance(exc, gemini_service.GeminiResponseValidationError):
-        return HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=str(exc),
-        )
-    if isinstance(exc, gemini_service.GeminiExtractionError):
-        return HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=str(exc),
-        )
-    return HTTPException(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        detail="Unable to analyze the uploaded PDF due to an internal service error.",
-    )
+    if isinstance(exc, AppError):
+        return exc
+    return AnalysisFailedError()
 
 
 @router.post("/rate-manual", response_model=FullAnalysisResponse)
@@ -154,10 +136,8 @@ def extract_text(file_id: str, request: Request) -> dict:
     try:
         return extract_text_from_pdf(str(pdf_path))
     except PDFExtractionError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=str(exc),
-        ) from exc
+        logger.warning("PDF text extraction failed for file_id=%s", file_id)
+        raise PDFExtractionFailedError() from exc
 
 
 @router.post("/locate-sections/{file_id}")
@@ -176,10 +156,8 @@ def locate_sections(file_id: str, request: Request) -> dict:
     try:
         return locate_financial_statement_sections(pdf_path)
     except PDFExtractionError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=str(exc),
-        ) from exc
+        logger.warning("PDF text extraction failed for file_id=%s", file_id)
+        raise PDFExtractionFailedError() from exc
 
 
 @router.post("/analyze-extraction/{file_id}", response_model=ExtractedFinancialData)
@@ -198,25 +176,19 @@ def analyze_extraction(file_id: str, request: Request) -> ExtractedFinancialData
     try:
         located_sections = locate_financial_statement_sections(pdf_path)
     except PDFExtractionError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=str(exc),
-        ) from exc
+        logger.warning("PDF text extraction failed for file_id=%s", file_id)
+        raise PDFExtractionFailedError() from exc
 
     relevant_text = str(located_sections.get("combined_relevant_text") or "").strip()
     if not relevant_text:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="No relevant financial statement sections were found in the uploaded PDF.",
-        )
+        raise FinancialSectionsNotFoundError()
 
     try:
         return gemini_service.extract_financial_data_with_gemini(relevant_text)
     except Exception as exc:
-        http_error = _http_error_for_gemini_exception(exc)
-        if http_error.status_code >= status.HTTP_500_INTERNAL_SERVER_ERROR:
-            logger.exception("Gemini extraction failed for temporary file_id=%s", file_id)
-        raise http_error from exc
+        app_error = _app_error_for_gemini_exception(exc)
+        logger.exception("Gemini extraction failed for temporary file_id=%s", file_id)
+        raise app_error from exc
 
 
 @router.post("/analyze/{file_id}", response_model=FullAnalysisResponse)
@@ -243,26 +215,21 @@ def analyze_pdf(file_id: str, request: Request) -> FullAnalysisResponse:
                 extracted_pdf
             )
         except PDFExtractionError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Unable to extract readable text from the uploaded PDF.",
-            ) from exc
+            logger.warning("PDF extraction failed for temporary file_id=%s", file_id)
+            raise PDFExtractionFailedError() from exc
 
         relevant_text = str(located_sections.get("combined_relevant_text") or "").strip()
         if not relevant_text:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="No relevant financial statement sections were found in the uploaded PDF.",
-            )
+            raise FinancialSectionsNotFoundError()
 
         try:
             financial_data = gemini_service.extract_financial_data_with_gemini(
                 relevant_text
             )
         except Exception as exc:
-            http_error = _http_error_for_gemini_exception(exc)
+            app_error = _app_error_for_gemini_exception(exc)
             logger.exception("Gemini extraction failed for temporary file_id=%s", file_id)
-            raise http_error from exc
+            raise app_error from exc
 
         financial_data = _normalize_optional_lists(financial_data)
         ratios = calculate_ratios(financial_data)
@@ -276,17 +243,15 @@ def analyze_pdf(file_id: str, request: Request) -> FullAnalysisResponse:
             disclaimer=DISCLAIMER,
             privacy_note=PRIVACY_NOTE,
         )
-    except HTTPException:
+    except AppError:
         raise
     except Exception as exc:
         logger.exception("Analysis failed for temporary file_id=%s", file_id)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Unable to analyze the uploaded PDF due to an internal server error.",
-        ) from exc
+        raise AnalysisFailedError() from exc
     finally:
         if pdf_path is not None:
             try:
                 pdf_path.unlink(missing_ok=True)
             except OSError:
-                logger.exception("Failed to delete temporary PDF for file_id=%s", file_id)
+                cleanup_error = TemporaryFileCleanupFailedError()
+                logger.exception("%s for file_id=%s", cleanup_error.message, file_id)

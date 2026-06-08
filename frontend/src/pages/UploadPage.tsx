@@ -17,6 +17,11 @@ type UploadStep = "idle" | "uploading" | "uploaded" | "analyzing";
 
 type ErrorContext = "upload" | "analysis";
 
+interface DisplayError {
+  message: string;
+  retryAction?: ErrorContext;
+}
+
 const TEMPORARY_PROCESSING_MESSAGE =
   "Your document is processed temporarily and deleted after analysis.";
 
@@ -38,7 +43,9 @@ function isGeminiRateLimit(error: unknown): boolean {
     detail.includes("rate limit") ||
     detail.includes("quota") ||
     detail.includes("resource_exhausted") ||
-    detail.includes("too many requests")
+    detail.includes("too many requests") ||
+    detail.includes("temporarily busy") ||
+    detail.includes("free daily limit")
   );
 }
 
@@ -48,7 +55,7 @@ function getFriendlyErrorMessage(error: unknown, context: ErrorContext): string 
   }
 
   if (isGeminiRateLimit(error)) {
-    return "Gemini rate limit reached. Please wait a moment, then try analyzing again.";
+    return "The AI service is temporarily busy or the free daily limit may have been reached. Please try again later.";
   }
 
   if (context === "upload") {
@@ -66,7 +73,7 @@ export function UploadPage({ onAnalysisComplete, onNavigate }: UploadPageProps) 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadResponse, setUploadResponse] = useState<TemporaryUploadResponse | null>(null);
   const [step, setStep] = useState<UploadStep>("idle");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<DisplayError | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -89,7 +96,7 @@ export function UploadPage({ onAnalysisComplete, onNavigate }: UploadPageProps) 
 
     if (!isPdfFile(file)) {
       resetUploadForNewFile(null);
-      setError("Invalid file. Please select a PDF document.");
+      setError({ message: "Invalid file. Please select a PDF document." });
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -123,7 +130,7 @@ export function UploadPage({ onAnalysisComplete, onNavigate }: UploadPageProps) 
 
   async function handleUpload() {
     if (!selectedFile) {
-      setError("Invalid file. Please select a PDF document.");
+      setError({ message: "Invalid file. Please select a PDF document." });
       return;
     }
 
@@ -137,13 +144,16 @@ export function UploadPage({ onAnalysisComplete, onNavigate }: UploadPageProps) 
     } catch (caughtError) {
       setUploadResponse(null);
       setStep("idle");
-      setError(getFriendlyErrorMessage(caughtError, "upload"));
+      setError({
+        message: getFriendlyErrorMessage(caughtError, "upload"),
+        retryAction: selectedFile ? "upload" : undefined,
+      });
     }
   }
 
   async function handleAnalyze() {
     if (!uploadResponse) {
-      setError("Upload a PDF before starting analysis.");
+      setError({ message: "Upload a PDF before starting analysis." });
       return;
     }
 
@@ -156,7 +166,45 @@ export function UploadPage({ onAnalysisComplete, onNavigate }: UploadPageProps) 
       onNavigate(routes.dashboard);
     } catch (caughtError) {
       setStep("uploaded");
-      setError(getFriendlyErrorMessage(caughtError, "analysis"));
+      setError({
+        message: getFriendlyErrorMessage(caughtError, "analysis"),
+        retryAction: selectedFile ? "analysis" : undefined,
+      });
+    }
+  }
+
+  async function handleRetry() {
+    if (!error?.retryAction) {
+      return;
+    }
+
+    if (error.retryAction === "upload") {
+      await handleUpload();
+      return;
+    }
+
+    if (!selectedFile) {
+      setError({ message: "Please select the PDF again before retrying analysis." });
+      return;
+    }
+
+    setStep("uploading");
+    setError(null);
+
+    try {
+      const response = await uploadFinancialDocument(selectedFile);
+      setUploadResponse(response);
+      setStep("analyzing");
+      const result = await analyzeUploadedDocument(response.file_id);
+      onAnalysisComplete(result);
+      onNavigate(routes.dashboard);
+    } catch (caughtError) {
+      setStep("idle");
+      setUploadResponse(null);
+      setError({
+        message: getFriendlyErrorMessage(caughtError, "analysis"),
+        retryAction: selectedFile ? "analysis" : undefined,
+      });
     }
   }
 
@@ -223,8 +271,22 @@ export function UploadPage({ onAnalysisComplete, onNavigate }: UploadPageProps) 
         ) : null}
 
         {error ? (
-          <div className="rounded-2xl border border-rose-900 bg-rose-950/50 p-4 text-rose-200" role="alert">
-            {error}
+          <div
+            className="rounded-2xl border border-rose-700 bg-rose-950/70 p-4 text-rose-100"
+            role="alert"
+          >
+            <p className="font-semibold text-white">Something needs your attention</p>
+            <p className="mt-2 text-sm leading-6">{error.message}</p>
+            {error.retryAction ? (
+              <button
+                className="mt-4 rounded-full bg-white px-4 py-2 text-sm font-semibold text-rose-950 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={step === "uploading" || step === "analyzing"}
+                type="button"
+                onClick={handleRetry}
+              >
+                Try again
+              </button>
+            ) : null}
           </div>
         ) : null}
 
