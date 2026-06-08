@@ -91,11 +91,31 @@ export async function analyzeUploadedDocument(fileId: string): Promise<AnalysisR
   return parseJsonResponse<AnalysisResult>(response);
 }
 
+export async function analyzeFinancialDocumentUpload(
+  file: File,
+): Promise<AnalysisResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/analyze-upload`, {
+      method: "POST",
+      body: formData,
+    });
+  } catch (error) {
+    throw new ApiRequestError("Backend unavailable", {
+      detail: error instanceof Error ? error.message : undefined,
+    });
+  }
+
+  return parseJsonResponse<AnalysisResult>(response);
+}
+
 export async function uploadAndAnalyzeFinancialDocument(
   file: File,
 ): Promise<AnalysisResult> {
-  const upload = await uploadFinancialDocument(file);
-  return analyzeUploadedDocument(upload.file_id);
+  return analyzeFinancialDocumentUpload(file);
 }
 
 export async function rateManualFinancialData(

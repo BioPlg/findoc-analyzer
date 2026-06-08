@@ -82,6 +82,13 @@ class GeminiRateLimitError(AppError):
     message = "The AI service is temporarily busy or the free daily limit may have been reached. Please try again later."
 
 
+class GeminiHighDemandError(GeminiRateLimitError):
+    """Raised when Gemini returns a 503 high-demand/temporary-unavailable response."""
+
+    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    message = "Gemini is temporarily busy due to high demand. Please wait a few minutes and try again."
+
+
 class InvalidGeminiJSONError(AppError):
     """Raised when Gemini returns JSON that cannot be parsed or validated."""
 
@@ -103,17 +110,46 @@ class TemporaryFileCleanupFailedError(AppError):
     message = "The analysis finished, but the temporary PDF could not be deleted."
 
 
-def error_response(message: str, status_code: int, details: Any | None = None) -> JSONResponse:
-    """Build the consistent public API error response shape."""
+def _allowed_error_origin(request: Request) -> str | None:
+    """Return the request origin when it is allowed by the configured CORS policy."""
+    origin = request.headers.get("origin")
+    if not origin:
+        return None
+
+    configured_origins = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ]
+    frontend_origin = getattr(request.app.state.settings, "frontend_origin", "")
+    if frontend_origin:
+        configured_origins.append(frontend_origin)
+
+    return origin if origin in configured_origins else None
+
+
+def error_response(
+    request: Request,
+    message: str,
+    status_code: int,
+    details: Any | None = None,
+) -> JSONResponse:
+    """Build the consistent public API error response shape with CORS headers."""
     payload: dict[str, Any] = {"error": True, "message": message}
     if details is not None:
         payload["details"] = details
-    return JSONResponse(status_code=status_code, content=payload)
+
+    response = JSONResponse(status_code=status_code, content=payload)
+    allowed_origin = _allowed_error_origin(request)
+    if allowed_origin:
+        response.headers["Access-Control-Allow-Origin"] = allowed_origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Vary"] = "Origin"
+    return response
 
 
 async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
     """Return safe application errors without stack traces."""
-    return error_response(exc.message, exc.status_code, exc.details)
+    return error_response(request, exc.message, exc.status_code, exc.details)
 
 
 async def http_exception_handler(
@@ -123,13 +159,14 @@ async def http_exception_handler(
     """Normalize framework HTTP errors to the application error shape."""
     message = exc.detail if isinstance(exc.detail, str) else "The request failed."
     details = None if isinstance(exc.detail, str) else exc.detail
-    return error_response(message, exc.status_code, details)
+    return error_response(request, message, exc.status_code, details)
 
 
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Return a generic safe response for unexpected errors."""
     logger.exception("Unhandled backend error for %s %s", request.method, request.url.path)
     return error_response(
+        request,
         "Something went wrong on the server. Please try again.",
         status.HTTP_500_INTERNAL_SERVER_ERROR,
     )
@@ -141,6 +178,7 @@ async def validation_exception_handler(
 ) -> JSONResponse:
     """Return validation errors without exposing internal exception details."""
     return error_response(
+        request,
         "Some submitted information was invalid. Please check the form and try again.",
         status.HTTP_422_UNPROCESSABLE_ENTITY,
         exc.errors(),
