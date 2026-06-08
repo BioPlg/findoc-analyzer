@@ -72,7 +72,7 @@ export interface SectionDetection {
   warnings: string[];
 }
 
-export interface AnalysisResult {
+export interface FullAnalysisResponse {
   extracted_financial_data: ExtractedFinancialData;
   ratios: RatioResult[];
   rating: RatingResult;
@@ -81,8 +81,50 @@ export interface AnalysisResult {
   privacy_note: string;
 }
 
+export type AnalysisResult = FullAnalysisResponse;
+
 export interface TemporaryUploadResponse {
   file_id: string;
   filename: string;
   message: string;
+}
+
+export function isRatioStatus(value: unknown): value is RatioStatus {
+  return (
+    value === "strong" ||
+    value === "average" ||
+    value === "weak" ||
+    value === "unknown"
+  );
+}
+
+export function isRatioResult(value: unknown): value is RatioResult {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Partial<RatioResult>;
+  return (
+    typeof candidate.name === "string" &&
+    typeof candidate.explanation === "string" &&
+    isRatioStatus(candidate.status) &&
+    (candidate.value === undefined ||
+      candidate.value === null ||
+      typeof candidate.value === "number")
+  );
+}
+
+export function isFullAnalysisResponse(value: unknown): value is FullAnalysisResponse {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Partial<FullAnalysisResponse>;
+  return Boolean(
+    candidate.extracted_financial_data &&
+      candidate.rating &&
+      Array.isArray(candidate.ratios) &&
+      candidate.ratios.every(isRatioResult) &&
+      candidate.section_detection,
+  );
 }
