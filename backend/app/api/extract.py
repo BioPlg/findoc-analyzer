@@ -68,6 +68,21 @@ def _normalize_optional_lists(financial_data: ExtractedFinancialData) -> Extract
     return financial_data
 
 
+def _manual_section_detection() -> SectionDetection:
+    """Return explicit empty source-page metadata for manual rerating requests."""
+    return SectionDetection(
+        income_statement_pages=[],
+        balance_sheet_pages=[],
+        cash_flow_pages=[],
+        warnings=[
+            (
+                "Manual edits were used to recalculate this rating; no uploaded "
+                "PDF pages were reprocessed."
+            )
+        ],
+    )
+
+
 def _http_error_for_gemini_exception(exc: Exception) -> HTTPException:
     """Map Gemini service errors to clear public API errors."""
     if isinstance(exc, gemini_service.GeminiConfigurationError):
@@ -93,6 +108,33 @@ def _http_error_for_gemini_exception(exc: Exception) -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         detail="Unable to analyze the uploaded PDF due to an internal service error.",
+    )
+
+
+@router.post("/rate-manual", response_model=FullAnalysisResponse)
+def rate_manual(financial_data: ExtractedFinancialData) -> FullAnalysisResponse:
+    """Recalculate ratios and rating from user-edited extracted financial data.
+
+    This manual review endpoint intentionally performs only local Python work: it
+    accepts edited structured data, normalizes optional lists, recalculates
+    ratios and the educational rating, generates the rating final summary in
+    Python, and returns a transient response without saving the edits or calling
+    Gemini for extraction or summarization.
+    """
+    normalized_financial_data = _normalize_optional_lists(financial_data)
+    ratios = calculate_ratios(normalized_financial_data)
+    rating = calculate_rating(normalized_financial_data, ratios)
+
+    return FullAnalysisResponse(
+        extracted_financial_data=normalized_financial_data,
+        ratios=ratios,
+        rating=rating,
+        section_detection=_manual_section_detection(),
+        disclaimer=DISCLAIMER,
+        privacy_note=(
+            "Manual edits are used only for this recalculation response and are "
+            "not permanently stored by this demo."
+        ),
     )
 
 
