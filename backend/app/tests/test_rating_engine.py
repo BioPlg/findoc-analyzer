@@ -58,7 +58,7 @@ def test_calculate_rating_returns_strong_component_scores_and_local_summary():
     assert rating.warnings == []
     assert "educational" in rating.final_summary.lower()
     assert "uploaded document" in rating.final_summary.lower()
-    assert "investment advice" in rating.final_summary.lower()
+    assert "review the source filing" in rating.final_summary.lower()
     assert "buy" not in rating.final_summary.lower()
     assert "sell" not in rating.final_summary.lower()
     assert "hold" not in rating.final_summary.lower()

@@ -278,7 +278,7 @@ def _final_summary(
         f"with an overall score of {_format_number(overall_score)} out of 100; "
         f"{profitability_note}, {financial_health_note}, and {cash_flow_note}. "
         "This rating is educational and is based only on the data extracted "
-        "from the uploaded document, so it is not investment advice."
+        "from the uploaded document. Review the source filing before relying on it."
     )
 
 

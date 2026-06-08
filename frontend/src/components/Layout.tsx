@@ -27,7 +27,9 @@ export function Layout({ children, currentRoute, onNavigate }: LayoutProps) {
             <span className="text-sm font-semibold uppercase tracking-[0.3em] text-cyan-300">
               FinDoc
             </span>
-            <span className="block text-2xl font-bold text-white">Analyzer</span>
+            <span className="block text-2xl font-bold text-white">
+              Analyzer
+            </span>
           </button>
           <nav aria-label="Primary navigation" className="flex flex-wrap gap-2">
             {navigationItems.map((item) => (
@@ -55,12 +57,12 @@ export function Layout({ children, currentRoute, onNavigate }: LayoutProps) {
       <footer className="border-t border-slate-800 bg-slate-950 px-6 py-6 text-sm text-slate-400">
         <div className="mx-auto grid max-w-7xl gap-3 md:grid-cols-2">
           <p>
-            Disclaimer: This tool is for educational review only and does not
-            provide financial, investment, legal, or tax advice.
+            Disclaimer: This tool is for educational review only and summarizes
+            extracted filing data without recommendations.
           </p>
           <p className="md:text-right">
-            Privacy note: Uploads and dashboard data are treated as temporary
-            session information for the current analysis only.
+            Privacy note: Dashboard data is temporary frontend session data for
+            the current analysis only.
           </p>
         </div>
       </footer>
