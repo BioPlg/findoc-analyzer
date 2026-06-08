@@ -1,16 +1,46 @@
+import { useEffect, useState } from "react";
+import { Layout } from "./components/Layout";
+import { DashboardPage } from "./pages/DashboardPage";
+import { HomePage } from "./pages/HomePage";
+import { UploadPage } from "./pages/UploadPage";
+import type { AnalysisResult } from "./types/analysis";
+import type { AppRoute } from "./utils/router";
+import { normalizeRoute } from "./utils/router";
+
 export function App() {
+  const [currentRoute, setCurrentRoute] = useState<AppRoute>(() =>
+    normalizeRoute(window.location.pathname),
+  );
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+
+  useEffect(() => {
+    function handlePopState() {
+      setCurrentRoute(normalizeRoute(window.location.pathname));
+    }
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  function handleNavigate(route: AppRoute) {
+    if (route !== currentRoute) {
+      window.history.pushState({}, "", route);
+      setCurrentRoute(route);
+    }
+  }
+
   return (
-    <main className="min-h-screen bg-slate-950 px-6 py-12 text-slate-100">
-      <section className="mx-auto max-w-4xl rounded-2xl border border-slate-800 bg-slate-900 p-8 shadow-xl">
-        <p className="text-sm font-semibold uppercase tracking-wide text-cyan-300">
-          MVP scaffold
-        </p>
-        <h1 className="mt-3 text-4xl font-bold">FinDoc Analyzer</h1>
-        <p className="mt-4 max-w-2xl text-slate-300">
-          Upload flow, Gemini extraction, local financial ratio calculations, and
-          dashboard charts will be implemented in future milestones.
-        </p>
-      </section>
-    </main>
+    <Layout currentRoute={currentRoute} onNavigate={handleNavigate}>
+      {currentRoute === "/" ? <HomePage onNavigate={handleNavigate} /> : null}
+      {currentRoute === "/upload" ? (
+        <UploadPage
+          onAnalysisComplete={setAnalysisResult}
+          onNavigate={handleNavigate}
+        />
+      ) : null}
+      {currentRoute === "/dashboard" ? (
+        <DashboardPage analysisResult={analysisResult} onNavigate={handleNavigate} />
+      ) : null}
+    </Layout>
   );
 }
