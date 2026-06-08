@@ -155,6 +155,8 @@ findoc-analyzer/
       config.py                 # Environment-backed settings
       main.py                   # FastAPI app entry point
     .env.example
+    .dockerignore
+    Dockerfile
     requirements.txt
     pytest.ini
   frontend/
@@ -172,9 +174,12 @@ findoc-analyzer/
       main.tsx
       styles.css
     .env.example
+    .dockerignore
+    Dockerfile
     index.html
     package.json
     vite.config.ts
+  docker-compose.yml
   README.md
 ```
 
@@ -237,6 +242,52 @@ http://localhost:5173
 ```
 
 The frontend calls the backend through `VITE_API_BASE_URL`, which defaults to `http://localhost:8000` in the sample environment file.
+
+
+## Docker local development
+
+Docker support is intended for local development only and keeps the existing transient-data behavior: the stack runs only the FastAPI backend and Vite frontend, does not start a database, and mounts the backend upload directory on an in-memory `tmpfs` path inside the backend container so uploaded PDFs are not persisted permanently.
+
+From the repository root, optionally create a backend environment file for Gemini-backed analysis:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+Then edit `backend/.env` and set `GEMINI_API_KEY`. Do not commit `backend/.env` or any other `.env` file. If you only want to verify the containers and health endpoint, the compose file can start without `backend/.env`.
+
+Build and start the local Docker stack:
+
+```bash
+docker compose up --build
+```
+
+The services run at:
+
+```text
+Frontend: http://localhost:5173
+Backend:  http://localhost:8000
+```
+
+Health check while the stack is running:
+
+```bash
+curl http://localhost:8000/health
+```
+
+Stop the stack and remove development containers and anonymous volumes, including the frontend dependency volume:
+
+```bash
+docker compose down --volumes
+```
+
+Notes for Docker development:
+
+- The backend container runs `uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload`.
+- The frontend container runs the Vite development server with `--host 0.0.0.0`.
+- `TEMP_UPLOAD_DIR` is set to `/tmp/findoc-uploads` in Docker and mounted as `tmpfs`, so uploads are temporary container memory files and are removed when the container stops.
+- No database container is included, matching the MVP design.
+- The frontend uses `VITE_API_BASE_URL=http://localhost:8000` so browser requests reach the backend through the published host port.
 
 ## Environment variables
 

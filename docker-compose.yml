@@ -1,0 +1,28 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    env_file:
+      - path: ./backend/.env
+        required: false
+    environment:
+      TEMP_UPLOAD_DIR: /tmp/findoc-uploads
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    tmpfs:
+      - /tmp/findoc-uploads
+
+  frontend:
+    build:
+      context: ./frontend
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
