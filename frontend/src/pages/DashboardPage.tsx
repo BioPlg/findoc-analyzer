@@ -5,9 +5,15 @@ import {
   PillarScoreCards,
   PrivacyNoteBox,
 } from "../components/DashboardRating";
+import {
+  BalanceSheetChart,
+  CashFlowChart,
+  IncomeStatementChart,
+  RatioBarChart,
+} from "../components/FinancialCharts";
 import { isRatioStatus } from "../types/analysis";
 import type { AnalysisResult, RatioStatus } from "../types/analysis";
-import { formatCompactNumber, formatRatioValue } from "../utils/formatters";
+import { formatCompactCurrency, formatRatioValue } from "../utils/formatters";
 import type { AppRoute } from "../utils/router";
 import { routes } from "../utils/router";
 
@@ -98,6 +104,13 @@ export function DashboardPage({ analysisResult, onNavigate }: DashboardPageProps
       <ExtractionSummaryBox text={financialData?.ai_extraction_summary} />
 
       <div className="grid gap-8 xl:grid-cols-2">
+        <IncomeStatementChart data={financialData?.income_statement} />
+        <BalanceSheetChart data={financialData?.balance_sheet} />
+        <CashFlowChart data={financialData?.cash_flow_statement} />
+        <RatioBarChart ratios={ratioResults} />
+      </div>
+
+      <div className="grid gap-8 xl:grid-cols-2">
         <article className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl">
           <h2 className="text-xl font-semibold text-white">Financial snapshot</h2>
           <div className="mt-6 space-y-4">
@@ -108,7 +121,7 @@ export function DashboardPage({ analysisResult, onNavigate }: DashboardPageProps
               >
                 <span className="text-slate-300">{item.name}</span>
                 <span className="font-semibold text-white">
-                  {formatCompactNumber(item.value)}
+                  {formatCompactCurrency(item.value)}
                 </span>
               </div>
             ))}
