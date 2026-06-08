@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["extract"])
 
-DISCLAIMER = "This analysis is for educational purposes only and is not financial advice."
+DISCLAIMER = "This analysis is for educational purposes only and summarizes extracted document data without recommendations."
 PRIVACY_NOTE = (
     "Uploaded documents are processed temporarily and deleted after analysis. "
     "This demo does not permanently store uploaded files or analysis results."
