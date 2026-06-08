@@ -1,7 +1,8 @@
 """Application configuration for the FinDoc Analyzer API.
 
 Settings are loaded from environment variables and, for local development,
-from ``backend/.env`` when present. Keep secrets out of source control.
+from the backend ``.env`` file when present. Keep secrets out of source
+control.
 """
 
 from functools import lru_cache
@@ -12,6 +13,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+ENV_FILE = REPO_ROOT / "backend" / ".env"
 
 
 class Settings(BaseSettings):
@@ -30,10 +32,13 @@ class Settings(BaseSettings):
             return upload_dir
         return REPO_ROOT / upload_dir
 
-    model_config = SettingsConfigDict(env_file="backend/.env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=ENV_FILE, extra="ignore")
 
 
 @lru_cache
 def get_settings() -> Settings:
     """Return cached application settings."""
     return Settings()
+
+
+settings = get_settings()
