@@ -1,1 +1,100 @@
-# findoc-analyzer
+# FinDoc Analyzer
+
+FinDoc Analyzer is a full-stack MVP scaffold for converting company financial documents into beginner-friendly financial dashboards.
+
+Users will eventually upload PDFs such as 10-Ks, 10-Qs, annual reports, or consolidated financial statements. The backend will temporarily process each PDF, use Gemini once to extract structured financial data, calculate ratios locally in Python, generate an educational rating locally, and return results to a React dashboard.
+
+## MVP scope
+
+This repository currently contains the initial project structure only. The upload workflow, PDF parsing, Gemini extraction, ratio calculations, rating logic, and dashboard visualizations will be implemented in later milestones.
+
+## Tech stack
+
+- Frontend: React, Vite, TypeScript, Tailwind CSS
+- Charts: Recharts
+- Backend: Python, FastAPI
+- PDF parsing: pdfplumber
+- LLM extraction: Gemini API from the backend only
+- Default Gemini model: `gemini-2.5-flash`
+- Validation: Pydantic
+- Database: none for MVP
+- Storage: temporary uploaded files only
+
+## Data and security policy
+
+- Uploaded PDFs are session-based and temporary only.
+- Do not use a database for the MVP.
+- Do not permanently save uploaded PDFs.
+- Delete uploaded PDFs after analysis finishes, whether analysis succeeds or fails.
+- Do not save extracted data, ratings, or previous analysis history.
+- Do not add login, authentication, or an analysis history page for the MVP.
+- Never expose the Gemini API key in frontend code.
+- Never commit `backend/.env` or any private financial documents.
+- Use mock or sample financial data only.
+
+## Project structure
+
+```text
+backend/
+  app/
+    api/
+    core/
+    schemas/
+    services/
+    tests/
+    utils/
+    config.py
+    main.py
+  .env.example
+  requirements.txt
+frontend/
+  public/
+  src/
+    assets/
+    components/
+    pages/
+    services/
+    types/
+    App.tsx
+    main.tsx
+    styles.css
+  .env.example
+  index.html
+  package.json
+  postcss.config.js
+  tailwind.config.js
+  tsconfig.json
+  vite.config.ts
+.gitignore
+README.md
+```
+
+## Backend setup
+
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+uvicorn app.main:app --reload
+```
+
+Set `GEMINI_API_KEY` in `backend/.env` before implementing Gemini-backed extraction.
+
+## Frontend setup
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend `.env.example` intentionally does not include any Gemini secrets. Gemini must be called from the backend only.
+
+## Current status
+
+- Initial backend folders and FastAPI health check placeholder are present.
+- Initial frontend Vite/React/TypeScript/Tailwind scaffold is present.
+- Environment examples and ignore rules are present.
+- No full application features have been implemented yet.

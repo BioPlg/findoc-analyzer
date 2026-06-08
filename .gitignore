@@ -216,3 +216,17 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# FinDoc Analyzer local secrets and generated files
+*.env
+backend/.env
+frontend/.env
+uploads/
+backend/uploads/
+backend/uploads/tmp/
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+.cache/
+*.cache
