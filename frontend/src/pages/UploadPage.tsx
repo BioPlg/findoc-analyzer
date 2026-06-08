@@ -165,9 +165,11 @@ export function UploadPage({ onAnalysisComplete, onNavigate }: UploadPageProps) 
       onAnalysisComplete(result);
       onNavigate(routes.dashboard);
     } catch (caughtError) {
-      setStep("uploaded");
+      setUploadResponse(null);
+      setStep("idle");
+      const friendlyMessage = getFriendlyErrorMessage(caughtError, "analysis");
       setError({
-        message: getFriendlyErrorMessage(caughtError, "analysis"),
+        message: `${friendlyMessage} The temporary upload has been cleared, so please upload the PDF again before analyzing.`,
         retryAction: selectedFile ? "analysis" : undefined,
       });
     }

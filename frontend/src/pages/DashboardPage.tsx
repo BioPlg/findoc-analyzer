@@ -182,6 +182,7 @@ export function DashboardPage({
     ...sectionWarnings,
   ];
   const ratioResults = Array.isArray(ratios) ? ratios : [];
+  const canReviewExtractedData = Boolean(financialData);
 
   async function handleManualReviewSave(editedData: ExtractedFinancialData) {
     setIsSavingManualReview(true);
@@ -236,7 +237,8 @@ export function DashboardPage({
           </div>
           <div className="flex flex-col gap-3 sm:flex-row lg:flex-col xl:flex-row">
             <button
-              className="inline-flex w-fit rounded-full bg-sky-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-300"
+              className="inline-flex w-fit rounded-full bg-sky-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-300 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={!canReviewExtractedData}
               type="button"
               onClick={() => {
                 setManualReviewError(null);
@@ -261,7 +263,7 @@ export function DashboardPage({
         current dashboard state and are not saved permanently.
       </div>
 
-      {isManualReviewOpen ? (
+      {isManualReviewOpen && financialData ? (
         <ManualReviewForm
           data={financialData}
           error={manualReviewError}

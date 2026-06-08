@@ -53,7 +53,7 @@ VALID_GEMINI_JSON = """
 
 
 class FakeAPIError(Exception):
-    """Minimal fake Google API error for retry tests."""
+    """Minimal fake Google API error for single-call error mapping tests."""
 
     def __init__(self, code: int):
         super().__init__("fake api error")
@@ -82,14 +82,11 @@ def _fake_sdk_modules():
     )
 
 
-def test_gemini_retries_rate_limits_with_exponential_backoff(monkeypatch):
-    attempts = []
-    sleep_calls = []
+def test_gemini_success_uses_one_request_for_data_and_summary(monkeypatch):
+    calls = []
 
     def fake_generate_content_once(**kwargs):
-        attempts.append(kwargs["prompt"])
-        if len(attempts) < 3:
-            raise FakeAPIError(429)
+        calls.append(kwargs)
         return SimpleNamespace(text=VALID_GEMINI_JSON)
 
     monkeypatch.setattr(gemini_service, "get_settings", _fake_settings)
@@ -99,24 +96,23 @@ def test_gemini_retries_rate_limits_with_exponential_backoff(monkeypatch):
         "_generate_content_once",
         fake_generate_content_once,
     )
-    monkeypatch.setattr(gemini_service.time, "sleep", sleep_calls.append)
 
     result = gemini_service.extract_financial_data_with_gemini("income statement text")
 
     assert result.ai_extraction_summary == "Extracted in the same Gemini response."
-    assert len(attempts) == 3
-    assert sleep_calls == [1.0, 2.0]
+    assert len(calls) == 1
 
 
-def test_gemini_rate_limit_error_uses_public_free_tier_message(monkeypatch):
+def test_gemini_rate_limit_error_uses_public_free_tier_message_without_retry(monkeypatch):
+    calls = []
+
     def always_rate_limited(**kwargs):
+        calls.append(kwargs)
         raise FakeAPIError(429)
 
     monkeypatch.setattr(gemini_service, "get_settings", _fake_settings)
     monkeypatch.setattr(gemini_service, "_load_google_genai_sdk", _fake_sdk_modules)
     monkeypatch.setattr(gemini_service, "_generate_content_once", always_rate_limited)
-    monkeypatch.setattr(gemini_service.time, "sleep", lambda seconds: None)
-
     with pytest.raises(GeminiRateLimitError) as exc_info:
         gemini_service.extract_financial_data_with_gemini("income statement text")
 
@@ -124,6 +120,7 @@ def test_gemini_rate_limit_error_uses_public_free_tier_message(monkeypatch):
         "The AI service is temporarily busy or the free daily limit may have been reached. "
         "Please try again later."
     )
+    assert len(calls) == 1
 
 
 def test_section_locator_limits_text_and_prefers_financial_statement_sections():
