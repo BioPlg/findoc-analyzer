@@ -19,7 +19,7 @@ interface DisplayError {
 }
 
 const TEMPORARY_PROCESSING_MESSAGE =
-  "Your document is processed temporarily and deleted after analysis.";
+  "Your company filing is processed temporarily and deleted after analysis.";
 
 function isPdfFile(file: File): boolean {
   const hasPdfName = file.name.toLowerCase().endsWith(".pdf");
@@ -163,11 +163,10 @@ export function UploadPage({ onAnalysisComplete, onNavigate }: UploadPageProps) 
           Analyze a Document
         </p>
         <h1 className="mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">
-          Upload one PDF financial report.
+          Upload one company financial filing.
         </h1>
         <p className="mt-4 text-base leading-7 text-slate-300">
-          We will process it in one temporary backend request, ask Gemini to find the key financial
-          numbers once, then use Python to calculate ratios for the dashboard.
+          Upload a PDF report from a public company, such as a 10-K, 10-Q, or annual report. The app processes the filing temporarily, asks Gemini to extract key financial values once, then uses Python to calculate ratios for the dashboard.
         </p>
 
         <div className="mt-6 rounded-3xl border border-sky-400/20 bg-sky-400/10 p-5 text-sm leading-6 text-sky-50">
@@ -177,7 +176,7 @@ export function UploadPage({ onAnalysisComplete, onNavigate }: UploadPageProps) 
 
         <ol className="mt-6 space-y-3 text-sm leading-6 text-slate-300">
           {[
-            "Choose the PDF from your device.",
+            "Choose a company financial filing PDF from your device.",
             "Click Analyze to upload and process it in one secure request.",
             "Review the rating, charts, and gentle review notes on the dashboard.",
           ].map((item, index) => (
@@ -222,10 +221,10 @@ export function UploadPage({ onAnalysisComplete, onNavigate }: UploadPageProps) 
               ↥
             </span>
             <span className="mt-5 block break-words text-lg font-semibold text-white">
-              {selectedFile ? selectedFile.name : "Drag and drop a PDF here"}
+              {selectedFile ? selectedFile.name : "Drag and drop a company filing PDF here"}
             </span>
             <span className="mt-2 block text-sm leading-6 text-slate-400">
-              Or choose a PDF from your device. Only .pdf files are accepted.
+              Only PDF company financial reports, such as 10-K, 10-Q, or annual reports, are supported.
             </span>
             <input
               ref={fileInputRef}

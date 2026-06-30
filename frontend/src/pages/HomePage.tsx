@@ -7,19 +7,19 @@ interface HomePageProps {
 
 const workflowSteps = [
   {
-    title: "Upload financial document",
+    title: "Upload company financial filing",
     description:
-      "Choose one PDF report. The app works with a single current document so the experience stays simple.",
+      "Choose a PDF report from a public company, such as a 10-K, 10-Q, or annual report.",
   },
   {
-    title: "Gemini extracts key numbers",
+    title: "Gemini extracts company financial values",
     description:
-      "Gemini reads the filing and pulls out important sales, profit, balance sheet, and cash flow figures.",
+      "Gemini reads the company filing text and identifies important values such as revenue, net income, assets, liabilities, equity, and cash flow.",
   },
   {
     title: "Python calculates ratios",
     description:
-      "The backend checks the extracted numbers and calculates common financial ratios in plain language.",
+      "Python uses the extracted company financial values to calculate ratios with fixed formulas.",
   },
   {
     title: "Dashboard shows rating and charts",
@@ -34,9 +34,9 @@ const workflowSteps = [
 ];
 
 const trustMessages = [
-  "Educational summaries, not financial direction.",
-  "Warnings are shown as review notes, not alarms.",
-  "Temporary processing with privacy-friendly messaging.",
+  "Educational summaries, not financial advice.",
+  "Review notes help users double-check extracted company filing values.",
+  "Uploaded company reports are processed temporarily and deleted after analysis.",
 ];
 
 export function HomePage({ onNavigate }: HomePageProps) {
@@ -48,15 +48,13 @@ export function HomePage({ onNavigate }: HomePageProps) {
           <div className="absolute -bottom-24 -left-16 h-56 w-56 rounded-full bg-blue-500/20 blur-3xl" />
           <div className="relative">
             <p className="inline-flex rounded-full border border-sky-400/20 bg-sky-400/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.28em] text-sky-200">
-              Financial document analysis
+              Company financial filing analysis
             </p>
             <h1 className="mt-6 max-w-4xl text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
-              Turn one filing into a clear, beginner-friendly financial dashboard.
+              Turn company financial filings into clear, beginner-friendly dashboards.
             </h1>
             <p className="mt-6 max-w-2xl text-base leading-8 text-slate-300 sm:text-lg">
-              Upload a PDF financial document, let Gemini extract the key numbers,
-              and review Python-calculated ratios with charts, notes, and a plain
-              English rating for educational review.
+              Upload an official company financial document, such as a 10-K, 10-Q, or annual report. FinDoc Analyzer extracts key financial numbers and turns them into Python-calculated ratios, charts, and an educational financial health rating.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <button
@@ -138,11 +136,10 @@ export function HomePage({ onNavigate }: HomePageProps) {
             <p className="text-sm font-semibold uppercase tracking-[0.25em] text-sky-300">
               How it works
             </p>
-            <h2 className="mt-2 text-3xl font-bold text-white">From upload to dashboard</h2>
+            <h2 className="mt-2 text-3xl font-bold text-white">From company filing to dashboard</h2>
           </div>
           <p className="max-w-2xl text-sm leading-6 text-slate-400">
-            Designed for people new to financial statements: simple labels,
-            helpful context, and a reminder to compare important numbers with the source PDF.
+            Designed for users learning how to read company financial statements. The app helps turn official company filings into simple labels, ratios, charts, and review notes.
           </p>
         </div>
         <ol className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
