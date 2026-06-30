@@ -74,20 +74,20 @@ function TableShell({
   const extractionWarnings = warnings?.filter(Boolean) ?? [];
 
   return (
-    <article className="rounded-3xl border border-slate-800 bg-slate-900/85 p-4 shadow-xl ring-1 ring-white/5 sm:p-6">
+    <article className="min-w-0 max-w-full rounded-3xl border border-slate-800 bg-slate-900/85 p-4 shadow-xl ring-1 ring-white/5 sm:p-6">
       <div>
         <h2 className="text-xl font-semibold text-white">{title}</h2>
         <p className="mt-2 text-sm leading-6 text-slate-400">{description}</p>
       </div>
 
-      <div className="mt-5 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4 text-sm leading-6 text-cyan-100">
+      <div className="mt-5 max-w-full overflow-hidden break-words rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4 text-sm leading-6 text-cyan-100">
         {verificationNote}
       </div>
 
       {extractionWarnings.length > 0 ? (
-        <div className="mt-4 rounded-2xl border border-amber-300/25 bg-amber-300/10 p-4">
+        <div className="mt-4 max-w-full overflow-hidden break-words rounded-2xl border border-amber-300/25 bg-amber-300/10 p-4">
           <p className="text-sm font-semibold text-amber-50">Review notes</p>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-amber-50/85">
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-amber-50/85 [overflow-wrap:anywhere]">
             {extractionWarnings.map((warning) => (
               <li key={warning}>{warning}</li>
             ))}
@@ -95,7 +95,7 @@ function TableShell({
         </div>
       ) : null}
 
-      <div className="mt-6 overflow-x-auto rounded-2xl border border-slate-800">
+      <div className="mt-6 w-full max-w-full overflow-x-auto rounded-2xl border border-slate-800 [-webkit-overflow-scrolling:touch]">
         {children}
       </div>
     </article>
@@ -104,7 +104,7 @@ function TableShell({
 
 function StatementTable({ rows }: { rows: StatementRow[] }) {
   return (
-    <table className="min-w-full divide-y divide-slate-800 text-left text-sm">
+    <table className="min-w-[26rem] table-auto divide-y divide-slate-800 text-left text-sm sm:min-w-full">
       <thead className="bg-slate-950/80 text-xs uppercase tracking-[0.2em] text-slate-400">
         <tr>
           <th className="px-4 py-3 font-semibold sm:px-5">Metric</th>
@@ -114,8 +114,8 @@ function StatementTable({ rows }: { rows: StatementRow[] }) {
       <tbody className="divide-y divide-slate-800 bg-slate-950/40">
         {rows.map((row) => (
           <tr key={row.label} className="align-top">
-            <td className="px-4 py-4 font-medium text-slate-200 sm:px-5">{row.label}</td>
-            <td className="px-4 py-4 text-right font-semibold text-white sm:px-5">
+            <td className="w-1/2 min-w-0 whitespace-normal px-4 py-4 font-medium leading-6 text-slate-200 sm:px-5">{row.label}</td>
+            <td className="whitespace-nowrap px-4 py-4 text-right font-semibold text-white sm:px-5">
               {formatCurrency(row.value)}
             </td>
           </tr>
@@ -197,7 +197,7 @@ export function RatiosTable({ ratios, warnings }: RatiosTableProps) {
       title="Ratios table"
       warnings={warnings}
     >
-      <table className="min-w-[48rem] divide-y divide-slate-800 text-left text-sm">
+      <table className="min-w-[42rem] table-auto divide-y divide-slate-800 text-left text-sm md:min-w-[48rem]">
         <thead className="bg-slate-950/80 text-xs uppercase tracking-[0.2em] text-slate-400">
           <tr>
             <th className="px-4 py-3 font-semibold sm:px-5">Ratio</th>
@@ -213,7 +213,7 @@ export function RatiosTable({ ratios, warnings }: RatiosTableProps) {
 
               return (
                 <tr key={ratio.name || index} className="align-top">
-                  <td className="px-4 py-4 font-medium text-slate-200 sm:px-5">
+                  <td className="min-w-[10rem] whitespace-normal px-4 py-4 font-medium leading-6 text-slate-200 sm:px-5">
                     {ratio.name || "Unnamed ratio"}
                   </td>
                   <td className="whitespace-nowrap px-4 py-4 text-right font-semibold text-white sm:px-5">
@@ -226,7 +226,7 @@ export function RatiosTable({ ratios, warnings }: RatiosTableProps) {
                       {ratioStatus}
                     </span>
                   </td>
-                  <td className="px-4 py-4 leading-6 text-slate-300 sm:px-5">
+                  <td className="min-w-[14rem] whitespace-normal px-4 py-4 leading-6 text-slate-300 sm:px-5">
                     {ratio.explanation || "Not available"}
                   </td>
                 </tr>

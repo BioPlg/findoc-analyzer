@@ -294,7 +294,7 @@ export function DashboardPage({
   }
 
   return (
-    <section className="space-y-8">
+    <section className="max-w-full space-y-8 overflow-x-hidden">
       <div className="rounded-[2rem] border border-slate-800 bg-gradient-to-br from-slate-900 via-slate-900 to-sky-950/60 p-6 shadow-2xl shadow-slate-950/30 ring-1 ring-white/5 lg:p-8">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div>
@@ -403,7 +403,7 @@ export function DashboardPage({
         <WarningList warnings={allWarnings} />
       </div>
 
-      <div className="grid gap-8 xl:grid-cols-2">
+      <div className="grid min-w-0 max-w-full gap-8 xl:grid-cols-2">
         <IncomeStatementTable
           data={financialData?.income_statement}
           warnings={extractionWarnings}

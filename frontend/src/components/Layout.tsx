@@ -59,7 +59,7 @@ export function Layout({ children, currentRoute, onNavigate }: LayoutProps) {
         </div>
       </header>
 
-      <main className="relative z-10 flex-1">
+      <main className="relative z-10 max-w-full flex-1 overflow-x-hidden">
         <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:py-12">
           {children}
         </div>
