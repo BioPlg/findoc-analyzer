@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "target": "clean",
     "public": "frontend/dist",
     "ignore": [
       "firebase.json",
