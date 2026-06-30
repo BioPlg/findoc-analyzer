@@ -2,57 +2,69 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 NumericValue = int | float
+NULL_LIKE_STRINGS = {"", "n/a", "na", "not found", "none", "null", "nil", "not available"}
 RatioStatus = Literal["strong", "average", "weak", "unknown"]
 
 
-class CompanyInfo(BaseModel):
+class NullLikeStringMixin(BaseModel):
+    """Normalize Gemini null-like placeholders before field validation."""
+
+    @field_validator("*", mode="before")
+    @classmethod
+    def _null_like_strings_to_none(cls, value):  # noqa: ANN001
+        if isinstance(value, str) and value.strip().lower() in NULL_LIKE_STRINGS:
+            return None
+        return value
+
+
+class CompanyInfo(NullLikeStringMixin):
     """Basic company and filing metadata extracted from a financial document."""
 
-    company_name: str
+    company_name: str | None = None
     ticker: str | None = None
-    fiscal_year: int
+    fiscal_year: int | None = None
     reporting_period: str | None = None
     document_type: str | None = None
 
 
-class IncomeStatement(BaseModel):
+class IncomeStatement(NullLikeStringMixin):
     """Core income statement values extracted from a financial document."""
 
-    revenue: NumericValue
+    revenue: NumericValue | None = None
     cost_of_revenue: NumericValue | None = None
     gross_profit: NumericValue | None = None
     operating_income: NumericValue | None = None
-    net_income: NumericValue
+    net_income: NumericValue | None = None
     eps: NumericValue | None = None
 
 
-class BalanceSheet(BaseModel):
+class BalanceSheet(NullLikeStringMixin):
     """Core balance sheet values extracted from a financial document."""
 
-    total_assets: NumericValue
+    total_assets: NumericValue | None = None
     current_assets: NumericValue | None = None
     cash_and_equivalents: NumericValue | None = None
-    total_liabilities: NumericValue
+    total_liabilities: NumericValue | None = None
     current_liabilities: NumericValue | None = None
     total_debt: NumericValue | None = None
     shareholders_equity: NumericValue | None = None
 
 
-class CashFlowStatement(BaseModel):
+class CashFlowStatement(NullLikeStringMixin):
     """Core cash flow statement values extracted from a financial document."""
 
-    operating_cash_flow: NumericValue
+    operating_cash_flow: NumericValue | None = None
     investing_cash_flow: NumericValue | None = None
     financing_cash_flow: NumericValue | None = None
     capital_expenditures: NumericValue | None = None
     free_cash_flow: NumericValue | None = None
 
 
-class ExtractedFinancialData(BaseModel):
+class ExtractedFinancialData(NullLikeStringMixin):
     """Structured financial data extracted from a source document."""
 
     company_info: CompanyInfo

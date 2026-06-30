@@ -21,6 +21,8 @@ Your task:
 - Do not provide investment advice.
 - Do not say buy, sell, or hold.
 - Do not guess or infer values that are not supported by the document text.
+- When a value is not found, return JSON null. Do not return placeholder strings such as "N/A", "not found", or blank strings.
+- Identify and extract values from the most recent fiscal year column available in the filing.
 
 Output requirements:
 - Return strict JSON only.
@@ -70,8 +72,12 @@ Value normalization rules:
 - If a table says values are "in thousands", multiply extracted table values by 1,000.
 - Parentheses around a number mean the number is negative.
 - Preserve per-share values, such as eps, as per-share values and do not scale them as monetary totals unless the document explicitly says they are scaled.
+- Use company filing terminology: revenue, net sales, total revenue, net income, net earnings, total assets, total liabilities, shareholders equity, stockholders equity, operating cash flow, net cash provided by operating activities, capital expenditures, and purchases of property and equipment.
 - Map "Net sales" and "Total revenue" to income_statement.revenue.
 - Map "Net earnings" to income_statement.net_income.
+- Map "Total stockholders equity" or "Total shareholders equity" to balance_sheet.shareholders_equity.
+- Map "Net cash provided by operating activities" to cash_flow_statement.operating_cash_flow.
+- Map "Purchases of property and equipment" to cash_flow_statement.capital_expenditures.
 - Missing values must be null.
 
 Warnings and notes:
@@ -80,6 +86,7 @@ Warnings and notes:
 - If a required-looking value cannot be found, set it to null and add an extraction_warnings entry.
 
 ai_extraction_summary requirements:
+- Include a concise extraction summary listing important fields found and important fields missing, especially the most recent fiscal year column used.
 - Write 1 to 2 beginner-friendly sentences describing what the extracted document data appears to show.
 - Base the summary only on extracted document data.
 - Do not provide investment advice.

@@ -1,6 +1,6 @@
 export function formatCompactNumber(value?: number | null): string {
   if (value === null || value === undefined || Number.isNaN(value)) {
-    return "—";
+    return "Not available";
   }
 
   return new Intl.NumberFormat("en-US", {
@@ -11,7 +11,7 @@ export function formatCompactNumber(value?: number | null): string {
 
 export function formatCompactCurrency(value?: number | null): string {
   if (value === null || value === undefined || Number.isNaN(value)) {
-    return "—";
+    return "Not available";
   }
 
   const absoluteValue = Math.abs(value);
@@ -38,7 +38,7 @@ export function formatCompactCurrency(value?: number | null): string {
 
 export function formatScore(value?: number | null): string {
   if (value === null || value === undefined || Number.isNaN(value)) {
-    return "—";
+    return "Not available";
   }
 
   return `${Math.round(value)}/100`;
@@ -46,7 +46,7 @@ export function formatScore(value?: number | null): string {
 
 export function formatPercentageValue(value?: number | null): string {
   if (value === null || value === undefined || Number.isNaN(value)) {
-    return "—";
+    return "Not available";
   }
 
   return `${(value * 100).toFixed(1)}%`;
@@ -54,7 +54,7 @@ export function formatPercentageValue(value?: number | null): string {
 
 export function formatRatioMultiple(value?: number | null): string {
   if (value === null || value === undefined || Number.isNaN(value)) {
-    return "—";
+    return "Not available";
   }
 
   return `${value.toFixed(2)}x`;

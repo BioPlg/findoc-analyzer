@@ -10,6 +10,8 @@ const ratingStyles: Record<string, string> = {
     "border-rose-400/40 bg-rose-400/10 text-rose-100 ring-rose-400/30",
   Unrated:
     "border-slate-400/40 bg-slate-400/10 text-slate-100 ring-slate-400/30",
+  "Needs Review":
+    "border-amber-300/40 bg-amber-300/10 text-amber-100 ring-amber-300/30",
 };
 
 const allowedRatingLabels = [
@@ -18,6 +20,7 @@ const allowedRatingLabels = [
   "Stable",
   "Weak",
   "High Risk",
+  "Needs Review",
 ] as const;
 
 type RatingLabel = (typeof allowedRatingLabels)[number];
@@ -77,7 +80,7 @@ export function ScoreBadge({ label, score }: ScoreBadgeProps) {
         Overall score
       </p>
       <p className="mt-3 text-5xl font-bold text-white">
-        {normalizedScore === null ? "—" : normalizedScore}
+        {normalizedScore === null ? "Not available" : normalizedScore}
         <span className="text-2xl text-slate-300">/100</span>
       </p>
       <p className="mt-3 rounded-full bg-slate-950/50 px-4 py-2 text-sm font-semibold text-white ring-1 ring-white/10">

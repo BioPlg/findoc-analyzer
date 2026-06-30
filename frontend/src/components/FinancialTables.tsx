@@ -38,7 +38,7 @@ function hasNumericValue(value?: number | null): value is number {
 
 function formatCurrency(value?: number | null): string {
   if (!hasNumericValue(value)) {
-    return "Not found";
+    return "Not available";
   }
 
   return new Intl.NumberFormat("en-US", {
@@ -50,7 +50,7 @@ function formatCurrency(value?: number | null): string {
 
 function formatPercentage(value?: number | null): string {
   if (!hasNumericValue(value)) {
-    return "Not found";
+    return "Not available";
   }
 
   return new Intl.NumberFormat("en-US", {
@@ -227,7 +227,7 @@ export function RatiosTable({ ratios, warnings }: RatiosTableProps) {
                     </span>
                   </td>
                   <td className="px-4 py-4 leading-6 text-slate-300 sm:px-5">
-                    {ratio.explanation || "Not found"}
+                    {ratio.explanation || "Not available"}
                   </td>
                 </tr>
               );

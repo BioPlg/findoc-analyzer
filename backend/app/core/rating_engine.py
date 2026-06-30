@@ -24,6 +24,7 @@ AVERAGE_SCORE = 65.0
 WEAK_SCORE = 45.0
 VERY_WEAK_SCORE = 20.0
 MISSING_SCORE = 0.0
+MIN_AVAILABLE_PILLARS_FOR_RATING = 2
 
 
 RatioLookup = dict[str, RatioResult]
@@ -52,12 +53,29 @@ def calculate_rating(
         financial_data, ratio_lookup, warnings
     )
 
-    overall_score = _clamp_score(
-        (profitability_score * PROFITABILITY_WEIGHT)
-        + (financial_health_score * FINANCIAL_HEALTH_WEIGHT)
-        + (cash_flow_score * CASH_FLOW_WEIGHT)
-    )
-    rating_label = _rating_label(overall_score)
+    available_pillars = [
+        (profitability_score, PROFITABILITY_WEIGHT),
+        (financial_health_score, FINANCIAL_HEALTH_WEIGHT),
+        (cash_flow_score, CASH_FLOW_WEIGHT),
+    ]
+    available_pillars = [
+        pillar for pillar in available_pillars if pillar[0] != MISSING_SCORE
+    ]
+
+    if len(available_pillars) < MIN_AVAILABLE_PILLARS_FOR_RATING:
+        warnings.append(
+            "Some values could not be extracted from this filing. Please review "
+            "the original PDF."
+        )
+        overall_score = MISSING_SCORE
+        rating_label = "Needs Review"
+    else:
+        available_weight = sum(weight for _, weight in available_pillars)
+        overall_score = _clamp_score(
+            sum(score * weight for score, weight in available_pillars)
+            / available_weight
+        )
+        rating_label = _rating_label(overall_score)
 
     final_summary = _final_summary(
         company_name=financial_data.company_info.company_name,
@@ -264,7 +282,7 @@ def _rating_label(overall_score: float) -> str:
 
 def _final_summary(
     *,
-    company_name: str,
+    company_name: str | None,
     overall_score: float,
     rating_label: str,
     profitability_note: str,
