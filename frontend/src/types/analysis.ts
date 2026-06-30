@@ -2,34 +2,34 @@ export type NumericValue = number;
 export type RatioStatus = "strong" | "average" | "weak" | "unknown";
 
 export interface CompanyInfo {
-  company_name: string;
+  company_name?: string | null;
   ticker?: string | null;
-  fiscal_year: number;
+  fiscal_year?: number | null;
   reporting_period?: string | null;
   document_type?: string | null;
 }
 
 export interface IncomeStatement {
-  revenue: NumericValue;
+  revenue?: NumericValue | null;
   cost_of_revenue?: NumericValue | null;
   gross_profit?: NumericValue | null;
   operating_income?: NumericValue | null;
-  net_income: NumericValue;
+  net_income?: NumericValue | null;
   eps?: NumericValue | null;
 }
 
 export interface BalanceSheet {
-  total_assets: NumericValue;
+  total_assets?: NumericValue | null;
   current_assets?: NumericValue | null;
   cash_and_equivalents?: NumericValue | null;
-  total_liabilities: NumericValue;
+  total_liabilities?: NumericValue | null;
   current_liabilities?: NumericValue | null;
   total_debt?: NumericValue | null;
   shareholders_equity?: NumericValue | null;
 }
 
 export interface CashFlowStatement {
-  operating_cash_flow: NumericValue;
+  operating_cash_flow?: NumericValue | null;
   investing_cash_flow?: NumericValue | null;
   financing_cash_flow?: NumericValue | null;
   capital_expenditures?: NumericValue | null;

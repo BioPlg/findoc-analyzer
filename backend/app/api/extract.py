@@ -11,6 +11,7 @@ from app.core.ratio_engine import calculate_ratios
 from app.schemas.financials import (
     ExtractedFinancialData,
     FullAnalysisResponse,
+    RatioResult,
     SectionDetection,
 )
 from app.errors import (
@@ -18,6 +19,7 @@ from app.errors import (
     AppError,
     FileNotFoundAppError,
     FinancialSectionsNotFoundError,
+    InsufficientFinancialDataError,
     InvalidPDFError,
     PDFExtractionFailedError,
     TemporaryFileCleanupFailedError,
@@ -39,6 +41,58 @@ PRIVACY_NOTE = (
     "Uploaded documents are processed temporarily and deleted after analysis. "
     "This demo does not permanently store uploaded files or analysis results."
 )
+
+
+USEFUL_FINANCIAL_FIELD_PATHS = [
+    ("income_statement", "revenue"),
+    ("income_statement", "gross_profit"),
+    ("income_statement", "operating_income"),
+    ("income_statement", "net_income"),
+    ("balance_sheet", "total_assets"),
+    ("balance_sheet", "total_liabilities"),
+    ("balance_sheet", "shareholders_equity"),
+    ("cash_flow_statement", "operating_cash_flow"),
+    ("cash_flow_statement", "capital_expenditures"),
+    ("cash_flow_statement", "free_cash_flow"),
+]
+MIN_USEFUL_VALUES_FOR_PARTIAL_DASHBOARD = 3
+
+
+def _extracted_value_count(financial_data: ExtractedFinancialData) -> int:
+    """Count useful non-null financial statement values for partial dashboards."""
+    count = 0
+    for section_name, field_name in USEFUL_FINANCIAL_FIELD_PATHS:
+        section = getattr(financial_data, section_name)
+        if getattr(section, field_name) is not None:
+            count += 1
+    return count
+
+
+def _ensure_enough_financial_data(financial_data: ExtractedFinancialData) -> None:
+    """Allow partial dashboards but reject extractions with almost no numbers."""
+    if _extracted_value_count(financial_data) < MIN_USEFUL_VALUES_FOR_PARTIAL_DASHBOARD:
+        raise InsufficientFinancialDataError()
+
+
+def _append_ratio_review_notes(
+    financial_data: ExtractedFinancialData,
+    ratios: list[RatioResult],
+) -> ExtractedFinancialData:
+    """Add review notes for unavailable ratios caused by missing or zero inputs."""
+    existing_warnings = financial_data.extraction_warnings or []
+    notes = list(existing_warnings)
+    missing_ratios = [ratio for ratio in ratios if ratio.value is None]
+    if missing_ratios:
+        notes.append(
+            "Some values could not be extracted from this filing. Please review the original PDF."
+        )
+    for ratio in missing_ratios:
+        notes.append(
+            f"{ratio.name} is not available because one or more required filing "
+            "values were missing or zero."
+        )
+    financial_data.extraction_warnings = list(dict.fromkeys(notes))
+    return financial_data
 
 
 def _pdf_path_for_file_id(upload_dir: Path, file_id: str) -> Path:
@@ -117,7 +171,9 @@ def _analyze_pdf_path(pdf_path: Path, *, log_context: str) -> FullAnalysisRespon
         raise app_error from exc
 
     financial_data = _normalize_optional_lists(financial_data)
+    _ensure_enough_financial_data(financial_data)
     ratios = calculate_ratios(financial_data)
+    financial_data = _append_ratio_review_notes(financial_data, ratios)
     rating = calculate_rating(financial_data, ratios)
 
     return FullAnalysisResponse(
@@ -142,6 +198,9 @@ def rate_manual(financial_data: ExtractedFinancialData) -> FullAnalysisResponse:
     """
     normalized_financial_data = _normalize_optional_lists(financial_data)
     ratios = calculate_ratios(normalized_financial_data)
+    normalized_financial_data = _append_ratio_review_notes(
+        normalized_financial_data, ratios
+    )
     rating = calculate_rating(normalized_financial_data, ratios)
 
     return FullAnalysisResponse(

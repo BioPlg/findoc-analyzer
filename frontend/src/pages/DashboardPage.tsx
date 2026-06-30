@@ -308,19 +308,19 @@ export function DashboardPage({
               <div className="rounded-2xl border border-slate-700 bg-slate-950/50 p-4">
                 <dt className="text-slate-400">Fiscal year</dt>
                 <dd className="mt-1 font-semibold text-white">
-                  {company?.fiscal_year ?? "Not found"}
+                  {company?.fiscal_year ?? "Not available"}
                 </dd>
               </div>
               <div className="rounded-2xl border border-slate-700 bg-slate-950/50 p-4">
                 <dt className="text-slate-400">Document type</dt>
                 <dd className="mt-1 font-semibold text-white">
-                  {company?.document_type ?? "Not found"}
+                  {company?.document_type ?? "Not available"}
                 </dd>
               </div>
               <div className="rounded-2xl border border-slate-700 bg-slate-950/50 p-4">
                 <dt className="text-slate-400">Reporting period</dt>
                 <dd className="mt-1 font-semibold text-white">
-                  {company?.reporting_period ?? "Not found"}
+                  {company?.reporting_period ?? "Not available"}
                 </dd>
               </div>
             </dl>
@@ -348,9 +348,14 @@ export function DashboardPage({
         </div>
       </div>
 
-      <div className="rounded-2xl border border-amber-300/25 bg-amber-300/10 p-4 text-sm font-semibold text-amber-50 ring-1 ring-amber-200/10">
-        Editing values will recalculate the rating. Manual edits update only the
-        current dashboard state and are not saved permanently.
+      <div className="space-y-3">
+        <div className="rounded-2xl border border-amber-300/25 bg-amber-300/10 p-4 text-sm font-semibold text-amber-50 ring-1 ring-amber-200/10">
+          Some values could not be extracted from this filing. Please review the original PDF.
+        </div>
+        <div className="rounded-2xl border border-amber-300/25 bg-amber-300/10 p-4 text-sm font-semibold text-amber-50 ring-1 ring-amber-200/10">
+          Editing values will recalculate the rating. Manual edits update only the
+          current dashboard state and are not saved permanently.
+        </div>
       </div>
 
       {isManualReviewOpen && financialData ? (

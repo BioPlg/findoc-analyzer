@@ -96,6 +96,13 @@ class InvalidGeminiJSONError(AppError):
     message = "The AI service returned data we could not understand. Please try again."
 
 
+class InsufficientFinancialDataError(AppError):
+    """Raised when extraction produced too few usable financial values."""
+
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    message = "The app could not extract enough financial values from this filing. Try a clearer 10-K, 10-Q, or annual report PDF with selectable text."
+
+
 class AnalysisFailedError(AppError):
     """Raised when the overall analysis pipeline fails unexpectedly."""
 

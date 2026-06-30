@@ -64,6 +64,10 @@ function getFriendlyErrorMessage(error: unknown, context: ErrorContext): string 
     return "Invalid file. Please select a valid PDF document.";
   }
 
+  if (error instanceof ApiRequestError && (error.status === 422 || error.status === 502)) {
+    return "The app could not extract enough financial values from this filing. Try a clearer 10-K, 10-Q, or annual report PDF with selectable text.";
+  }
+
   return "Analysis failed. Please try again, or upload a different PDF if the issue continues.";
 }
 
