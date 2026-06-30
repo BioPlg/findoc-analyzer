@@ -68,11 +68,11 @@ export function Layout({ children, currentRoute, onNavigate }: LayoutProps) {
       <footer className="relative z-10 border-t border-slate-800/80 bg-slate-950/90 px-4 py-6 text-sm text-slate-400 sm:px-6">
         <div className="mx-auto grid max-w-7xl gap-4 md:grid-cols-2">
           <p>
-            Educational review only: this tool summarizes extracted filing data
-            and explains calculated ratios in beginner-friendly language.
+            Educational review only: this tool summarizes extracted company filing data
+            and explains Python-calculated financial ratios in beginner-friendly language.
           </p>
           <p className="md:text-right">
-            Privacy note: uploaded documents are processed temporarily, deleted
+            Privacy note: uploaded company filings are processed temporarily, deleted
             after analysis, and dashboard results stay in the current browser session.
           </p>
         </div>
